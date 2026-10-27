@@ -351,6 +351,26 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .c-pharm .staffs{position:absolute;left:2px;bottom:0;z-index:3}
 .queue.pq{height:auto;flex:1;min-height:0;width:100%;padding:0 0 0 calc(var(--pz)*1.1);align-content:flex-start;gap:0 1px}
 .queue.pq .pt{margin-right:calc(var(--pz)*-.25)}
+/* 알림 바: 목표 칩 오른쪽 고정 자리 */
+#infobar{display:flex;align-items:center;gap:8px;padding-right:10px;min-height:42px}
+#infobar #goalbar{flex:1 1 auto;min-width:0}
+#toasts{position:relative;left:auto;top:auto;transform:none;flex:0 1 520px;width:auto;min-width:240px;height:38px;display:block;z-index:auto;pointer-events:none;gap:0}
+#toasts .toast{position:absolute;right:0;top:50%;max-width:100%;padding:3px 14px 3px 4px;gap:8px;font-size:.92rem;border-width:2px;border-radius:99px;
+  box-shadow:0 3px 0 var(--tb);white-space:nowrap;transform:translateY(-50%);animation:tkIn .35s cubic-bezier(.3,1.5,.5,1) both}
+#toasts .toast .ti{width:28px;height:28px;font-size:1rem}
+#toasts .toast .tt{overflow:hidden;text-overflow:ellipsis}
+#toasts .toast.old{animation:tkOut .3s forwards}
+#toasts .toast.combo{font-size:.98rem}
+#toasts .toast.combo::after{display:none}
+#toasts .toast.emer{animation:tkIn .35s cubic-bezier(.3,1.5,.5,1) both,tkShake .45s .35s}
+@keyframes tkIn{from{opacity:0;transform:translate(30px,-50%) scale(.9)}to{opacity:1;transform:translate(0,-50%)}}
+@keyframes tkOut{from{opacity:1;transform:translate(0,-50%)}to{opacity:0;transform:translate(0,-120%)}}
+@keyframes tkShake{20%,60%{transform:translate(-4px,-50%)}40%,80%{transform:translate(4px,-50%)}}
+@media (max-width:760px){
+  #infobar{flex-wrap:wrap;gap:0;padding:0 6px 3px 0}
+  #toasts{flex:1 1 100%;min-width:0;height:34px;margin-left:6px}
+  #toasts .toast{font-size:.82rem;left:0;right:auto}
+}
 .gbar{height:12px;background:#f1e6d6;border-radius:99px;overflow:hidden;margin:3px 0 8px}
 .gbar i{display:block;height:100%;background:linear-gradient(90deg,#9fe0c8,#6cc6a5);border-radius:99px}
 .grow{display:flex;gap:5px;align-items:baseline;font-size:.95rem}
@@ -474,12 +494,11 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
       <button id="bMenu" class="ibtn" title="메인 화면">🏠</button>
     </div>
   </div>
-  <div id="goalbar"></div>
+  <div id="infobar"><div id="goalbar"></div><div id="toasts"></div></div>
   <div id="mapWrap"><div id="map"></div></div>
 </div>
 <div id="pauseOv" class="hidden"><div class="big">⏸</div>잠깐 쉬는 중이에요~<br><small style="font-weight:600;color:#9b8a9f">톡 하면 다시 시작!</small></div>
 <div id="coach" class="hidden"></div>
-<div id="toasts"></div>
 <div id="title">
   <div class="t-ani"><span>🐶</span><span style="animation-delay:.1s">🐱</span><span style="animation-delay:.2s">🐰</span><span style="animation-delay:.3s">🐻</span><span style="animation-delay:.4s">🐼</span><span style="animation-delay:.5s">🦊</span><span style="animation-delay:.6s">🐹</span><span style="animation-delay:.7s">🐨</span></div>
   <div class="t-hosp">🏥</div>
@@ -685,10 +704,13 @@ const isLocked = id => DEPTS[id] ? !S.depts[id] : BUY_ROOMS[id] ? !S.rooms[id] :
 const prevOwned = id => { const i = DEPT_ORDER.indexOf(id); return i <= 0 || S.depts[DEPT_ORDER[i-1]]; };
 function baseInterval() {
   const nd = DEPT_ORDER.filter(d=>S.depts[d]).length;
-  // 초반 며칠은 여유 있게: 1일차 +6초 → 5일차부터 보너스 없음
-  const early = Math.max(0, 6 - (S.day-1)*1.5);
-  return clamp(12.5 + early - (S.day-1)*.45 - S.grade*1.0 - (S.rep-30)*.025 - (nd-1)*.6, 4.2, 20);
+  // 완만한 곡선: 1일차 19초 → 날이 갈수록 조금씩 줄어 최대 -10초 (진료과·등급·평판이 늘면 조금 더 빨라짐)
+  const dayCurve = 10 * (1 - Math.pow(.85, S.day-1));
+  return clamp(19 - dayCurve - S.grade*1.2 - clamp(S.rep-30, 0, 50)*.02 - (nd-1)*.8, 4.5, 20);
 }
+// 날짜에 따라 0→1 로 천천히 오르는 난이도 값 (start일차에 시작, span일 동안 최대치까지)
+const ramp = (start, span) => clamp((S.day - start + 1) / span, 0, 1);
+const emergLimit = () => Math.round(38 - 10*ramp(3, 10)); // 응급 제한 시간: 38초 → 28초
 function spawnInterval() {
   let iv = baseInterval();
   if (G.event && G.event.id==='flu') iv *= .78;
@@ -699,7 +721,7 @@ function hospitalMul() {
   const avgK = ks.length ? ks.reduce((a,s)=>a+s.kind,0)/ks.length : 1;
   let m = 1 - (avgK-1)*.06, d = 0;
   for (const k in DECOS) if (S.deco[k]) d += DECOS[k].eff;
-  m *= (1 - d) * (1 + G.dirt.length*.06) * (.8 + Math.min(.4, S.day*.03));
+  m *= (1 - d) * (1 + G.dirt.length*.06) * (.75 + .35*ramp(2, 14));
   return Math.max(.3, m);
 }
 function addMoney(n) { S.money += n; const c = $('#hMoneyC'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
@@ -738,8 +760,8 @@ function goalVal(g) { const s = G.stats; return ({treat:s.treated, angry:s.angry
 const goalOk = g => g.type==='angry' ? G.stats.angry <= g.target : goalVal(g) >= g.target;
 const goalProg = g => g.type==='money' ? `${fmtN(goalVal(g))}/${fmtN(g.target)}` : `${goalVal(g)}/${g.target}`;
 function rollEvent() {
-  if (S.day < 3 || Math.random() > .38) return null;
-  const list = ['flu','group','reporter']; if (S.day >= 4) list.push('hygiene');
+  if (S.day < 4 || Math.random() > .2 + .2*ramp(4, 8)) return null;
+  const list = ['flu','group','reporter']; if (S.day >= 5) list.push('hygiene');
   const id = pick(list);
   return { id, t: id==='group' ? rnd(55,110) : id==='hygiene' ? rnd(50,140) : 0, fired:false };
 }
@@ -751,15 +773,30 @@ const mapEl = $('#map');
 // 맨 앞 이모지는 동그란 아이콘으로 분리
 const EMO_RE = /^((?:\p{Extended_Pictographic})(?:️|‍\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)\s*/u;
 const TOAST_ICON = { combo:'🔥', lvl:'⬆️', bad:'💦', ev:'📣', vip:'👑' };
+// 알림은 목표 바 오른쪽 한 줄에 하나씩 차례로 (맵을 가리지 않음)
+const TQ = []; let tCur = null, tShownAt = 0, tTimer = 0;
 function toast(html, cls='') {
+  if (cls === 'emer') { TQ.unshift([html, cls]); tShownAt = 0; } // 응급 알림은 바로 띄움
+  else { TQ.push([html, cls]); if (TQ.length > 4) TQ.shift(); }
+  pumpToast();
+}
+function hideToast(t) { t.classList.add('old'); setTimeout(() => t.remove(), 300); if (tCur === t) tCur = null; }
+function pumpToast() {
+  if (!TQ.length) return;
+  const since = performance.now() - tShownAt;
+  if (tCur && since < 1300) { clearTimeout(tTimer); tTimer = setTimeout(pumpToast, 1300 - since); return; }
+  const [html, cls] = TQ.shift();
   const m = html.match(EMO_RE);
-  const icon = m ? m[1] : (TOAST_ICON[cls] || '💬'), body = m ? html.slice(m[0].length) : html;
+  const icon = m ? m[1] : (TOAST_ICON[cls] || '💬');
+  const body = (m ? html.slice(m[0].length) : html).replace(/<br\s*\/?>/g, ' · ');
   const t = document.createElement('div'); t.className = 'toast ' + cls;
   t.innerHTML = `<span class="ti">${icon}</span><span class="tt">${body}</span>`;
-  const box = $('#toasts'); box.appendChild(t);
-  while (box.children.length > 3) box.firstChild.remove();
-  setTimeout(() => t.remove(), 3100);
+  if (tCur) hideToast(tCur);
+  $('#toasts').appendChild(t); tCur = t; tShownAt = performance.now();
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => { if (TQ.length) pumpToast(); else hideToast(t); }, TQ.length ? 1300 : 3400);
 }
+function clearToasts() { TQ.length = 0; clearTimeout(tTimer); tCur = null; $('#toasts').innerHTML = ''; }
 function floatAt(el, text, cls='') {
   const r = el.getBoundingClientRect();
   const f = document.createElement('div'); f.className = 'float ' + cls; f.textContent = text;
@@ -923,21 +960,21 @@ function spawn(force=false, o={}) {
   if (!force && G.patients.filter(p => p.loc==='ent').length >= ENT_CAP) return null;
   const sym = o.sym || chooseSym();
   const emerg = !!o.emerg;
-  const unknown = emerg ? false : o.unknown != null ? o.unknown : (S.day >= 3 && Math.random() < Math.min(.2, .07 + S.day*.012));
+  const unknown = emerg ? false : o.unknown != null ? o.unknown : (S.day >= 4 && Math.random() < .06 + .12*ramp(4, 10));
   // 복합 증상: 서로 다른 두 진료과를 들러야 함
   const owned = DEPT_ORDER.filter(d => S.depts[d]);
-  const multi = !unknown && !emerg && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 3 && Math.random() < Math.min(.22, .08 + S.day*.01)));
+  const multi = !unknown && !emerg && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 4 && Math.random() < .06 + .14*ramp(4, 10)));
   const extra = [];
   if (multi) { const d2 = pick(owned.filter(d => d !== symDept(sym))); extra.push({ sym:pick(availSyms(d2)), dept:d2 }); }
   // 진상 환자
-  const karen = !emerg && !G.tut && (o.karen != null ? o.karen : (S.day >= 3 && Math.random() < Math.min(.14, .07 + S.day*.006)));
-  const red = Math.min(.26, .1 + S.day*.012), r = Math.random();
+  const karen = !emerg && !G.tut && (o.karen != null ? o.karen : (S.day >= 5 && Math.random() < .05 + .08*ramp(5, 10)));
+  const red = .08 + .16*ramp(2, 12), r = Math.random();
   const urg = o.urg != null ? o.urg : (r < red ? 2 : r < red + .35 ? 1 : 0);
   let vip = false;
   if (o.vip != null) vip = o.vip;
   else if (emerg || karen) vip = false;
   else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
-  else if (S.day >= 2 && Math.random() < Math.min(.1, .03 + S.day*.006)) vip = true;
+  else if (S.day >= 3 && Math.random() < .03 + .06*ramp(3, 10)) vip = true;
   const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:symDept(sym), unknown, revealed:false, shown:unknown?'❓':sym,
     urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
     extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
@@ -956,7 +993,7 @@ function spawn(force=false, o={}) {
 }
 function spawnEmerg() {
   const p = spawn(true, { emerg:true });
-  toast('🚑 응급 환자 도착! 28초 안에 진료실로 보내 주세요!', 'emer'); SFX.siren();
+  toast(`🚑 응급 환자 도착! ${emergLimit()}초 안에 진료실로 보내 주세요!`, 'emer'); SFX.siren();
   say(p, pick(['살려 주세요…! 🚨','빨리요 빨리!','으아앙 아파요!!']), 2500);
 }
 const KAREN_LINES = ['왜 이렇게 늦어요!!','나 먼저 해 줘요!','여기 원장 누구야?!','별점 1개 줄 거예요!','내가 누군지 알아요?!','에어컨 왜 이렇게 세요!!'];
@@ -1219,7 +1256,7 @@ function updPatience(dt) {
   const noisy = G.patients.some(p => p.tantrum);
   for (const p of G.patients.slice()) {
     if (p.stage === 'svc' || p.stage === 'ward') continue;
-    if (p.emerg && !p.saved) { p.pat -= dt * 100/28; if (p.pat <= 0) angry(p); continue; } // 응급: 28초 제한
+    if (p.emerg && !p.saved) { p.pat -= dt * 100/emergLimit(); if (p.pat <= 0) angry(p); continue; } // 응급: 제한 시간
     let lm = p.loc === 'cash' ? .45 : p.loc === 'pharmQ' ? .6 : p.loc === 'ent' ? (p.stage === 'new' ? 1 : 1.2) : 1;
     if (noisy && !p.tantrum && (p.loc === 'seat' || p.loc === 'ent')) lm *= 1.4; // 진상 소란에 다들 지침
     if (p.multi) lm *= .8;
@@ -1362,7 +1399,7 @@ function prepDay() {
   G.goals = makeGoals(); G.event = rollEvent();
   const vg = G.goals.find(g => g.type === 'vip');
   if (vg) G.vipTimes = Array.from({length:vg.target+1}, () => rnd(8,150)).sort((a,b) => a-b);
-  const ne = S.day < 2 ? 0 : 1 + (S.day >= 5 ? 1 : 0) + S.grade;
+  const ne = S.day < 3 ? 0 : 1 + (S.day >= 7 ? 1 : 0) + S.grade;
   G.emergTimes = Array.from({length:ne}, () => rnd(25,150)).sort((a,b) => a-b);
   hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
   showPrep();
@@ -1609,7 +1646,7 @@ function showGuide() {
       ❓ 원인 불명: 🩻 검사실에서 증상을 알아내거나, 아무 과에 보내서 50% 도박!<br>
       ♥ 하트가 다 닳으면 💢 화내고 떠나요 (평판 ↓)</div>
     <div class="box"><b>특별한 환자</b><br>
-      🚨 응급 환자: 접수 없이 바로 와요. 28초 안에 진료를 시작해야 해요! 진료 줄 맨 앞으로 들어가고 보상이 커요<br>
+      🚨 응급 환자: 접수 없이 바로 와요. 정해진 시간(${emergLimit()}초) 안에 진료를 시작해야 해요! 진료 줄 맨 앞으로 들어가고 보상이 커요<br>
       🩺 복합 증상: 말풍선에 증상이 두 개! 진료과를 하나씩 차례로 들러요 (순서는 자유)<br>
       🕶️ 진상 환자: 가끔 소란을 피워 주변 하트를 깎고 새치기해요. 소란 중일 때 4번 톡톡 눌러 달래 주세요</div>
     <div class="box"><b>진료 후</b><br>💊 약국 · 💉 주사실 → 💰 수납<br>🛏️ 입원실: 하루가 끝나면 퇴원하며 큰 돈을 내요</div>
@@ -1631,7 +1668,7 @@ function showTitle() {
 }
 function startGame(s) {
   S = s; $('#title').classList.add('hidden');
-  mapEl.innerHTML = ''; $('#toasts').innerHTML = '';
+  mapEl.innerHTML = ''; clearToasts();
   prepDay();
 }
 function toggleSound() {
