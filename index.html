@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#c8f0e1">
+<title>말랑병원 🏥</title>
+<style>
+:root{
+  --mint:#c8f0e1;--mint2:#9fe0c8;--mintD:#3fae8c;
+  --pink:#ffe0e8;--pink2:#ffbfd0;--pinkD:#e9789b;
+  --cream:#fff9ee;--line:#eadbcf;--lav:#ebe3ff;--lav2:#cfc0ff;--lemon:#fff2b8;
+  --ink:#5b4a60;--muted:#9b8a9f;
+  --red:#ff7f90;--yel:#ffcf5c;--grn:#6fd29a;
+  --pz:clamp(20px,3.4vmin,34px);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--cream);color:var(--ink);font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  background-image:radial-gradient(circle at 8% 10%,#ffe9f0 0,transparent 35%),radial-gradient(circle at 92% 92%,#dff6ec 0,transparent 40%)}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+.hidden{display:none!important}
+#app{height:100%;height:100dvh;display:flex;flex-direction:column}
+
+/* HUD */
+#hud{position:relative;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:6px 10px;background:#fffdf8ee;border-bottom:2px solid var(--line)}
+.logo{font-weight:900;font-size:1.05rem;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:2px solid var(--line);border-radius:99px;padding:2px 9px;font-size:.85rem;font-weight:700;white-space:nowrap}
+.chip.g{background:var(--mint);border-color:var(--mint2);color:#2f7d66}
+.chip.money b{color:#d08a1c}
+.chip.money.neg b{color:#d2557a}
+.chip.bump{animation:boing .35s}
+.hud-mid{display:flex;align-items:center;gap:6px;flex:1;min-width:170px}
+.clock{display:flex;align-items:center;gap:6px;flex:1;max-width:280px;font-weight:800;font-variant-numeric:tabular-nums}
+.tbar{flex:1;height:10px;background:#f1e6d6;border-radius:99px;overflow:hidden}
+.tbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mint2),var(--pink2));border-radius:99px}
+.hud-r{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.speed{display:flex;background:#fff;border:2px solid var(--line);border-radius:99px;overflow:hidden}
+.speed button{border:0;background:none;padding:3px 9px;font-size:.82rem;font-weight:800}
+.speed button.on{background:var(--pink2)}
+.ibtn{border:2px solid var(--line);background:#fff;border-radius:99px;width:34px;height:30px;font-size:.95rem;padding:0}
+.saved{font-size:.8rem;opacity:0;transition:opacity .4s}
+.saved.on{opacity:1}
+#goalbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 10px;font-size:.88rem;min-height:34px;align-items:center}
+.gchip{background:#fff;border:2px dashed var(--line);border-radius:99px;padding:3px 11px;font-weight:800;white-space:nowrap;box-shadow:0 2px 0 #f1e4d8}
+.gchip.ok{border-style:solid;border-color:var(--mint2);background:var(--mint);color:#2f7d66}
+.gchip.bad{border-style:solid;border-color:var(--pink2);background:var(--pink);color:#b44a6a}
+.gchip.ev{background:var(--lemon);border:2px solid #ffe08a}
+.gchip.combo{background:#fff0d9;border:2px solid #ffc98a;color:#c46a12;animation:boing .35s}
+
+/* MAP */
+#mapWrap{flex:1;min-height:0;overflow:auto;padding:4px 8px 10px;position:relative}
+#mapWrap.coachpad{padding-bottom:120px}
+#map{display:grid;gap:7px;min-height:100%;margin:0 auto}
+.card{position:relative;border-radius:18px;background:#fff;border:2px solid var(--line);padding:5px 6px 6px;display:flex;flex-direction:column;min-width:0;min-height:0;box-shadow:0 3px 0 #0000000d;transition:box-shadow .2s,border-color .2s}
+.ch{display:flex;align-items:center;gap:4px;font-size:clamp(11px,1.5vmin + 4px,15px);white-space:nowrap;overflow:hidden;flex:0 0 auto}
+.ch b{overflow:hidden;text-overflow:ellipsis}
+.ch .syms{margin-left:auto;letter-spacing:-1px}
+.ch .syms.small,.ch .deco{margin-left:auto;font-size:.82em;color:var(--muted);letter-spacing:0}
+.ch .deco{font-size:1em}
+.cb{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+.room1{gap:6%}
+.c-ent{background:linear-gradient(180deg,#fff3d6,#fff)}
+.c-wait{background:linear-gradient(180deg,#e6faf1,#f7fffb)}
+.c-dept{background:linear-gradient(180deg,#ffecf2,#fff)}
+.c-exam{background:linear-gradient(180deg,#efe9ff,#fff)}
+.c-pharm{background:linear-gradient(180deg,#e0f6ec,#fff)}
+.c-inj{background:linear-gradient(180deg,#e4f0ff,#fff)}
+.c-ward{background:linear-gradient(180deg,#f1ebff,#fff)}
+.c-cash{background:linear-gradient(180deg,#fff1c4,#fff)}
+.c-rest{background:linear-gradient(180deg,#ffead8,#fff)}
+.c-more,.card.locked{background:repeating-linear-gradient(45deg,#fbf5ea 0 10px,#f5ecdc 10px 20px);border-style:dashed;color:var(--muted);cursor:pointer}
+.lk{margin:auto;text-align:center;font-size:.78rem;line-height:1.4;padding:4px}
+.lk .big{font-size:1.5rem;display:block}
+.welcome{position:absolute;left:4px;bottom:0;font-size:10px;color:#c9a46a}
+.rest-empty{color:var(--muted);font-size:.8rem}
+.staffs:not(:empty)+.rest-empty{display:none}
+#map.selecting .card.target{border-color:var(--mintD);box-shadow:0 0 0 3px #3fae8c44}
+.card.hover{border-color:var(--pinkD)!important;box-shadow:0 0 0 4px #e9789b66!important}
+.card.hl{animation:hl 1s ease-in-out infinite;border-color:var(--pinkD)}
+.card.boing{animation:cardBoing .3s}
+
+/* 의자 / 슬롯 / 침대 */
+.seats{display:flex;flex-wrap:wrap;gap:3px 5px;justify-content:center;align-content:center}
+.seat{position:relative;width:calc(var(--pz)*1.6);height:calc(var(--pz)*2.2);display:flex;align-items:flex-end;justify-content:center}
+.seat::before{content:"";position:absolute;left:8%;right:8%;bottom:3%;height:40%;background:#bfe9d8;border-radius:8px 8px 5px 5px;box-shadow:inset 0 -4px 0 #9fd8c2}
+.seat::after{content:"";position:absolute;left:16%;right:16%;bottom:40%;height:26%;background:#d6f3e7;border-radius:8px 8px 0 0}
+.queue{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;align-content:flex-start;width:100%;height:100%;padding-top:2px}
+.slot{position:relative;width:calc(var(--pz)*2);height:calc(var(--pz)*2.7);border-radius:14px;background:#ffffffb8;border:2px dashed #f0c9d6;display:flex;align-items:flex-end;justify-content:center;padding-bottom:9px;flex:0 0 auto}
+.c-exam .slot{border-color:var(--lav2)}.c-pharm .slot{border-color:var(--mint2)}.c-inj .slot{border-color:#b9dcff}
+.slot .lab{position:absolute;top:1px;left:0;right:0;text-align:center;font-size:9px;color:var(--muted);white-space:nowrap}
+.prog{position:absolute;left:6px;right:6px;bottom:3px;height:5px;background:#0000000f;border-radius:9px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--mintD);border-radius:9px}
+.prog.chk i{background:var(--yel)}
+.card.closed .slot::after{content:"☕ 휴식 중";position:absolute;inset:0;display:grid;place-items:center;font-size:11px;background:#fff9;border-radius:12px}
+.beds{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center}
+.bed{position:relative;width:calc(var(--pz)*2);height:calc(var(--pz)*2.5);border-radius:12px;background:#fff;border:2px solid var(--lav2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px}
+.bed::before{content:"";position:absolute;top:4px;left:18%;right:18%;height:20%;background:var(--lav);border-radius:8px}
+.bed::after{content:"";position:absolute;bottom:0;left:0;right:0;height:36%;background:#dcd0ff;border-radius:0 0 10px 10px;opacity:.7}
+
+/* 직원 */
+.staffs{display:flex;gap:3px;align-items:flex-end}
+.sb{position:relative;font-size:calc(var(--pz)*.85);line-height:1}
+.sb i{position:absolute;right:-.3em;bottom:-.1em;font-size:.5em;font-style:normal}
+.sb em{position:absolute;right:-.3em;top:-.5em;font-size:.5em;font-style:normal;animation:bob 1.2s infinite}
+.sb.tired{filter:saturate(.5)}
+.c-ent .staffs{position:absolute;right:0;bottom:0}
+.c-wait .staffs{position:absolute;right:2px;bottom:0;z-index:3}
+.c-rest .staffs{flex-wrap:wrap;justify-content:center}
+.c-dept .sb,.c-pharm .sb{font-size:calc(var(--pz)*1.1)}
+
+/* 쓰레기 */
+.dirtL{position:absolute;inset:0;pointer-events:none;z-index:1}
+.dirt{position:absolute;transform:translate(-50%,-50%);font-size:calc(var(--pz)*.7);pointer-events:auto;cursor:pointer;filter:drop-shadow(0 2px 0 #0002);animation:pop .3s}
+.dirt.gone{animation:poof .4s forwards;pointer-events:none}
+
+/* 환자 */
+.pt{position:relative;width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.15);z-index:2;touch-action:none;cursor:grab;flex:0 0 auto}
+.pt-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.pt.arrive .pt-in{animation:arrive .5s}
+.pt-bub{background:#fff;border-radius:9px;padding:0 4px;font-size:calc(var(--pz)*.56);line-height:1.35;box-shadow:0 2px 0 #0001;border:1.5px solid #eadfe8;position:relative;margin-bottom:3px;white-space:nowrap}
+.pt-bub::after{content:"";position:absolute;left:50%;top:100%;margin-left:-3px;border:3px solid transparent;border-top-color:#eadfe8}
+.pt-bub:empty{visibility:hidden}
+.pt-bub small{font-size:.72em;opacity:.85;margin-left:1px}
+.pt-bub.dest{background:#fff6c9;border-color:#ffd66b;animation:bob .9s ease-in-out infinite}
+.pt-bub.pay{background:#fff1c2;border-color:#f3c64f;animation:bob .9s ease-in-out infinite}
+.pt-bub.mad{background:#ffe1e6;border-color:#ff9fb0}
+.pt-body{font-size:var(--pz);line-height:1;position:relative}
+.ani{display:inline-block}
+.crown{position:absolute;top:-.45em;left:50%;transform:translateX(-50%) rotate(-8deg);font-size:.5em}
+.pt-urg{position:absolute;left:-.12em;top:-.04em;width:.36em;height:.36em;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 2px #0003}
+.pt-urg.u0{background:var(--grn)}.pt-urg.u1{background:var(--yel)}.pt-urg.u2{background:var(--red);animation:blink .8s infinite}
+.pt-hp{display:flex;align-items:center;gap:1px;width:100%;margin-top:2px}
+.pt-hp b{font-size:9px;color:#ff6f8f;line-height:1}
+.pt-hp span{flex:1;height:5px;background:#f3e3ea;border-radius:9px;overflow:hidden}
+.pt-hp i{display:block;height:100%;width:100%;background:#ff9fb8;border-radius:9px;transition:width .2s}
+.pt.mid .pt-hp i{background:#ffb86b}
+.pt.low .pt-hp i{background:#ff5d73}
+.pt.low .ani{animation:shiver .25s infinite}
+.pt-say{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#5b4a60;color:#fff;font-size:11px;padding:3px 7px;border-radius:9px;white-space:nowrap;z-index:5;pointer-events:none;opacity:0;transition:opacity .2s}
+.pt-say.on{opacity:1}
+.pt-body.boing{animation:boing .35s}
+.pt.shake .pt-body{animation:shakeX .4s}
+.pt.sel .pt-in{animation:bob .6s ease-in-out infinite}
+.pt.sel .pt-body{filter:drop-shadow(0 0 3px #3fae8c) drop-shadow(0 0 2px #fff)}
+.pt.dragging{opacity:.3}
+.pt.bye,.pt.mad{pointer-events:none}
+.pt.bye .pt-in{animation:bye .8s ease-in forwards}
+.pt.mad .pt-in{animation:madOut .9s ease-in forwards}
+.pt.ghost{position:fixed;z-index:100;pointer-events:none;transform:translate(-50%,-75%) scale(1.25);opacity:.95}
+
+/* UI 레이어 */
+#pauseOv{position:fixed;inset:0;background:#fff9eecc;display:flex;align-items:center;justify-content:center;z-index:20;font-size:1.3rem;font-weight:900;flex-direction:column;gap:8px;cursor:pointer;text-align:center}
+#pauseOv .big{font-size:3rem;animation:bob 1.4s infinite}
+#coach{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:min(580px,calc(100% - 20px));background:#fff;border:3px solid var(--pink2);border-radius:26px;padding:12px 16px;display:flex;gap:12px;align-items:flex-start;z-index:40;box-shadow:0 5px 0 #f3b9c9,0 14px 28px #e9789b33;animation:drop .4s cubic-bezier(.3,1.5,.5,1)}
+#coach .who{font-size:2.2rem;line-height:1;width:54px;height:54px;flex:0 0 auto;display:grid;place-items:center;border-radius:50%;background:#ffeef3;box-shadow:inset 0 -5px 0 #0000000a}
+#coach .txt{flex:1;font-size:1rem;line-height:1.55}
+#coach .txt > b:first-child{color:#d9668b}
+#coach .txt small{color:var(--muted)}
+#coach .btns{display:flex;gap:6px;margin-top:6px;justify-content:flex-end}
+#toasts{position:fixed;left:50%;top:84px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:60;pointer-events:none;width:min(94vw,560px)}
+.toast{--tb:#ffd6e0;--tbg:#fff0f4;position:relative;display:flex;align-items:center;gap:11px;max-width:100%;background:#fff;color:var(--ink);
+  border:3px solid var(--tb);border-radius:24px;padding:7px 18px 7px 7px;font-weight:800;font-size:1rem;line-height:1.4;
+  box-shadow:0 5px 0 var(--tb),0 12px 26px #5b4a6026;animation:toastIn .5s cubic-bezier(.3,1.6,.5,1),toastOut .4s 2.7s forwards}
+.toast .ti{flex:0 0 auto;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:1.45rem;background:var(--tbg);box-shadow:inset 0 -4px 0 #0000000d}
+.toast .tt{text-align:left}
+.toast.combo{--tb:#ffc98a;--tbg:#fff1dc;font-size:1.2rem;color:#c46a12;background:linear-gradient(135deg,#fffaf0,#ffe9f0)}
+.toast.combo::after{content:"✨";position:absolute;right:-10px;top:-12px;font-size:1.3rem;animation:bob .8s infinite}
+.toast.vip{--tb:#ffd86b;--tbg:#fff4c7;background:linear-gradient(135deg,#fffdf2,#fff6d6)}
+.toast.ev{--tb:#ffe08a;--tbg:#fff6d0}
+.toast.bad{--tb:#ffb3c6;--tbg:#ffe3ea;background:#fff7f9}
+.toast.lvl{--tb:#9fe0c8;--tbg:#dcf6ec;background:#f7fffb}
+.float{font-size:1.35rem!important;-webkit-text-stroke:.5px #fff;text-shadow:0 2px 0 #fff,0 3px 0 #f5c77a,0 0 8px #fff!important}
+.float{position:fixed;z-index:70;pointer-events:none;font-weight:900;color:#e0951c;font-size:1.1rem;text-shadow:0 2px 0 #fff,0 0 6px #fff;transform:translate(-50%,-50%);animation:floatUp 1.1s ease-out forwards;white-space:nowrap}
+.float.s{font-size:.85rem;color:var(--mintD)}
+
+/* 모달 */
+.mback{position:fixed;inset:0;background:#5b4a6066;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:14px;z-index:95;animation:fade .2s}
+.modal{background:linear-gradient(180deg,#fffaf3,#fff4ea);border:4px solid #fff;border-radius:30px;max-width:540px;width:100%;max-height:92vh;max-height:92dvh;overflow:auto;padding:22px 18px 18px;font-size:1rem;
+  box-shadow:0 0 0 3px #ffd6e0,0 8px 0 3px #f3b9c9,0 22px 44px #5b4a6040;animation:drop .4s cubic-bezier(.3,1.5,.5,1)}
+.modal.wide{max-width:680px}
+.modal h2{margin:.05em 0 .35em;font-size:1.6rem;text-align:center;color:#d9668b;text-shadow:0 3px 0 #ffe0e8;font-weight:900}
+.modal .sub{text-align:center;color:#9b8a9f;margin:0 0 12px;font-size:1rem;line-height:1.55;font-weight:600}
+.btn{border-radius:99px;padding:.65em 1.3em;font-weight:900;background:#fff;border:3px solid #f1e4d8;box-shadow:0 4px 0 #f1e4d8;transition:transform .1s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #f1e4d8}
+.btn.pri{background:linear-gradient(180deg,#ffc7d6,#ffadc3);border-color:#ff9fb8;box-shadow:0 4px 0 #e98aa6;color:#7a2f49}
+.btn.mint{background:linear-gradient(180deg,#b6ecd8,#93dfc3);border-color:#7fd3b4;box-shadow:0 4px 0 #6cbf9f;color:#21614e}
+.btn.big{font-size:1.15rem;padding:.75em 1.8em}
+.btn:disabled{opacity:.45;cursor:default}
+.brow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.box{background:#fff;border-radius:20px;padding:12px 15px;margin:10px 0;border:3px solid #f6e9dd;box-shadow:0 4px 0 #f1e2d4;line-height:1.65;font-size:1rem}
+.box > b:first-child{color:#c4557a}
+.box small{color:#9b8a9f;font-size:.88rem}
+.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
+.row .plus{color:#2f9a74}.row .minus{color:#d2557a}
+.row.tot{border-top:3px dotted #f1e2d4;margin-top:6px;padding-top:8px;font-size:1.12rem}
+.stars{color:#f0b53a}
+.dot{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-1px;border:2px solid #fff;box-shadow:0 0 0 1px #0002}
+.dot.r{background:var(--red)}.dot.y{background:var(--yel)}.dot.g{background:var(--grn)}
+.promo{font-size:4rem;text-align:center;animation:bob 1.2s infinite}
+
+/* 상점 */
+.modal.shop{max-width:800px;padding:0;overflow:hidden;display:flex;flex-direction:column}
+.shop-head{position:relative;padding:40px 18px 12px;text-align:center;background:linear-gradient(180deg,#fff,#fff7f1)}
+.awning{position:absolute;left:0;right:0;top:0;height:22px;background:repeating-linear-gradient(90deg,#ffb3c6 0 28px,#fffdf8 28px 56px)}
+.awning::after{content:"";position:absolute;left:0;right:0;top:100%;height:13px;
+  background:radial-gradient(circle at 14px 0,#ffb3c6 13px,transparent 13.5px) 0 0/56px 13px repeat-x,radial-gradient(circle at 42px 0,#fffdf8 13px,transparent 13.5px) 0 0/56px 13px repeat-x;
+  filter:drop-shadow(0 2px 0 #f0b2c3)}
+.shop-title{font-size:1.75rem;font-weight:900;color:#e9789b;text-shadow:0 3px 0 #ffe0e8;letter-spacing:.03em}
+.wallet{display:inline-flex;gap:6px;align-items:center;margin-top:6px;background:#fff7dc;border:3px solid #ffe08a;border-radius:99px;padding:3px 18px;font-size:1.15rem;font-weight:900;color:#c98512;box-shadow:0 4px 0 #f5d27a}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px;padding:0 12px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:80px;padding:7px 12px 6px;font-size:.95rem;font-weight:900;color:#9b8a9f;
+  border-radius:18px;border:3px solid #f1e4d8;background:#fff;box-shadow:0 4px 0 #f1e4d8;transition:transform .15s}
+.tab span{font-size:1.55rem;line-height:1.1}
+.tab.on{background:#ffeef3;border-color:#ffbfd0;box-shadow:0 4px 0 #f3a5ba;color:#c4557a;transform:translateY(-3px)}
+.shop-body{overflow:auto;padding:6px 16px 14px;flex:1;min-height:0}
+.shop-foot{padding:12px;border-top:3px dotted #f1e2d4;text-align:center;background:#fffaf4}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.t-pink{--tc:#ffeef3;--tc2:#ffd0dc;--td:#e06d93}
+.t-mint{--tc:#e3f8ef;--tc2:#b8ead3;--td:#38a57f}
+.t-lav{--tc:#f0ebff;--tc2:#d9ccff;--td:#8a6fd6}
+.t-sky{--tc:#e6f2ff;--tc2:#c4defa;--td:#4a87cc}
+.t-lemon{--tc:#fff7d9;--tc2:#ffe49a;--td:#d29a12}
+.t-peach{--tc:#fff0e2;--tc2:#ffd2ad;--td:#e08446}
+.sitem{position:relative;background:#fff;border-radius:24px;padding:18px 12px 12px;text-align:center;border:3px solid var(--tc2);box-shadow:0 5px 0 var(--tc2);
+  display:flex;flex-direction:column;align-items:center;gap:5px;transition:transform .15s}
+.sitem:hover{transform:translateY(-3px) rotate(-.4deg)}
+.sitem.own{background:linear-gradient(180deg,#fff 30%,var(--tc))}
+.sitem.dim .sicon{filter:grayscale(.55);opacity:.7}
+.sicon{position:relative;width:72px;height:72px;border-radius:50%;background:var(--tc);display:grid;place-items:center;font-size:2.5rem;line-height:1;
+  box-shadow:inset 0 -6px 0 #0000000a,0 0 0 4px #fff,0 0 0 6px var(--tc2);margin:4px 0 6px}
+.sitem:hover .sicon{animation:boing .4s}
+.sicon .rb{position:absolute;right:-6px;bottom:-4px;font-size:1rem;font-style:normal;background:#fff;border-radius:50%;width:28px;height:28px;display:grid;place-items:center;box-shadow:0 2px 0 var(--tc2)}
+.sname{font-size:1.12rem;font-weight:900;color:#5b4a60}
+.sdesc{font-size:.9rem;color:#8a7a8f;line-height:1.5;flex:1}
+.symrow{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:2px 0 6px}
+.symrow em{font-style:normal;background:var(--tc);border-radius:99px;padding:1px 9px;font-weight:800;color:var(--td);font-size:.85rem}
+.sbuy{margin-top:8px;width:100%;border:0;border-radius:16px;padding:10px;font-size:1.02rem;font-weight:900;color:#fff;
+  background:var(--td);box-shadow:0 4px 0 #00000026,inset 0 -3px 0 #00000014;transition:transform .1s}
+.sbuy:active{transform:translateY(3px);box-shadow:0 1px 0 #00000026}
+.sbuy:disabled{background:#f1ebe5;color:#a8998c;box-shadow:0 4px 0 #e3d9cf;cursor:default}
+.sbuy.ghost{background:#fff;color:var(--td);border:3px solid var(--tc2);box-shadow:0 4px 0 var(--tc2);padding:7px}
+.sbuy.ghost:disabled{color:#b8a9b0}
+.coin{margin-right:3px}
+.stag{position:absolute;top:10px;left:10px;font-size:.78rem;font-weight:900;background:var(--tc);color:var(--td);border-radius:99px;padding:2px 10px}
+.stamp{position:absolute;top:10px;right:8px;font-size:.78rem;font-weight:900;color:#fff;background:var(--td);border-radius:99px;padding:3px 10px;transform:rotate(7deg);box-shadow:0 2px 0 #0000001f}
+.stats{width:100%;background:var(--tc);border-radius:14px;padding:7px 11px;font-size:.88rem;font-weight:800;display:grid;gap:4px;margin-top:4px}
+.stats div{display:flex;justify-content:space-between;align-items:center}
+.dots{display:inline-flex;gap:3px}
+.dots i{width:11px;height:11px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px var(--tc2)}
+.dots.spd i.on{background:#ffc94d;box-shadow:0 1px 0 #e0a92a}
+.dots.kind i.on{background:#ff8fb1;box-shadow:0 1px 0 #e06d93}
+.wage{font-size:.9rem;color:#8a7a8f}
+.ssec{display:flex;align-items:baseline;gap:8px;font-size:1.15rem;font-weight:900;color:#5b4a60;margin:14px 4px 10px}
+.ssec:first-child{margin-top:4px}
+.ssec small{font-size:.85rem;color:#9b8a9f;font-weight:700}
+.stip{margin:14px 2px 2px;font-size:.92rem;line-height:1.6;color:#8a7a8f;background:#fff;border:3px dashed #f1e4d8;border-radius:16px;padding:9px 14px}
+@media (max-width:600px){
+  .sgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .sitem{padding:16px 8px 10px;border-radius:20px}
+  .sicon{width:58px;height:58px;font-size:2rem}
+  .sname{font-size:1rem}.sdesc{font-size:.82rem}
+  .sbuy{font-size:.9rem;padding:9px 4px}
+  .tab{min-width:0;flex:1;padding:6px 4px;font-size:.82rem}
+  .tab span{font-size:1.3rem}
+  .shop-title{font-size:1.45rem}
+  .stag,.stamp{font-size:.68rem;padding:1px 7px}
+  .stats{font-size:.78rem;padding:6px 8px}
+  .dots i{width:9px;height:9px}
+}
+
+/* 타이틀 */
+#title{position:fixed;inset:0;z-index:90;background:linear-gradient(180deg,#d9f6ea,#fff3e6 55%,#ffe3ec);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;gap:8px}
+#title h1{font-size:clamp(2.6rem,11vw,4.4rem);margin:0;color:var(--pinkD);text-shadow:0 4px 0 #fff,0 7px 0 #ffd0dc;letter-spacing:.05em}
+.t-ani{font-size:clamp(1.6rem,7vw,2.6rem);display:flex;gap:.15em}
+.t-ani span{display:inline-block;animation:hop 1.4s ease-in-out infinite}
+.t-hosp{font-size:clamp(3rem,12vw,4.5rem)}
+.t-sub{color:var(--muted);line-height:1.6;margin:4px 0 10px}
+.t-btns{display:flex;flex-direction:column;gap:10px;width:min(280px,80vw)}
+.t-foot{font-size:.78rem;color:var(--muted);margin-top:10px}
+
+/* ===== 건물 평면도: 방들이 복도로 이어진 한 화면 ===== */
+#mapWrap{background:#cdeac0;background-image:radial-gradient(#b9dfa9 1.5px,transparent 2px),radial-gradient(#d9f0cf 1px,transparent 1.5px);background-size:22px 22px,13px 13px;background-position:0 0,7px 9px}
+#map{position:relative;gap:14px;padding:14px;border:9px solid #bba48d;border-radius:12px;
+  background:repeating-conic-gradient(#f5efe6 0 25%,#ece4d7 0 50%) 0 0/28px 28px;
+  box-shadow:inset 0 0 0 2px #a68e76,0 9px 0 #9c856f,0 16px 28px #0000002e}
+#map::before{content:"";position:absolute;left:-9px;top:34px;width:9px;height:64px;background:linear-gradient(90deg,#bfe4ff,#eaf7ff);box-shadow:inset 0 0 0 2px #8fb8d6}
+.card{border-radius:4px;border:6px solid #e8d9c8;padding:16px 6px 6px;
+  box-shadow:inset 0 0 0 1px #c9b49e,inset 0 8px 12px -6px #0000002a,0 0 0 1px #c9b49e,0 3px 0 #cdb8a1}
+.card[data-door]::after{content:"";position:absolute;left:50%;width:30%;max-width:56px;height:8px;transform:translateX(-50%);z-index:3;
+  background:#efe7db;border-left:3px solid #b69a7d;border-right:3px solid #b69a7d}
+.card[data-door=b]::after{bottom:-7px}
+.card[data-door=t]::after{top:-7px;left:74%}
+.ch{position:absolute;top:-13px;left:10px;max-width:calc(100% - 20px);z-index:4;background:#fffdf8;border:2px solid #cdb59b;border-radius:7px;
+  padding:1px 7px;box-shadow:0 2px 0 #b9a088;font-size:clamp(10px,1.3vmin + 4px,13px)}
+.ch .syms{margin-left:6px}
+.ch .syms.small,.ch .deco{display:none}
+.c-ent,.c-cash{background:repeating-linear-gradient(0deg,#e9dfd0 0 1px,transparent 1px 30px),repeating-linear-gradient(90deg,#e9dfd0 0 1px,transparent 1px 30px),linear-gradient(135deg,#fffdf8,#f7efe2)}
+.c-wait{background:repeating-linear-gradient(0deg,#0000000c 0 1px,transparent 1px 24px),repeating-linear-gradient(90deg,#f3d9b4 0 46px,#e2c39a 46px 47px,#f6dfbd 47px 92px,#e2c39a 92px 93px)}
+.c-dept,.c-pharm{background:repeating-linear-gradient(0deg,#d7ece5 0 1px,transparent 1px 26px),repeating-linear-gradient(90deg,#d7ece5 0 1px,transparent 1px 26px),#f6fcfa}
+.c-exam{background:repeating-linear-gradient(0deg,#e1d9f3 0 1px,transparent 1px 26px),repeating-linear-gradient(90deg,#e1d9f3 0 1px,transparent 1px 26px),#faf8ff}
+.c-inj{background:repeating-linear-gradient(0deg,#d6e6f6 0 1px,transparent 1px 26px),repeating-linear-gradient(90deg,#d6e6f6 0 1px,transparent 1px 26px),#f7fbff}
+.c-ward{background:radial-gradient(#e0d6f4 1px,transparent 1.6px) 0 0/10px 10px,#f2ecfc}
+.c-rest{background:repeating-linear-gradient(90deg,#e7c49a 0 34px,#d4ad80 34px 35px),#e7c49a}
+.c-more,.card.locked{background:radial-gradient(#d3ccc1 1px,transparent 1.6px) 0 0/9px 9px,#e8e3db;border-style:solid;border-color:#ddd3c6;color:#8f8478}
+/* 가구 */
+.furn{position:absolute;pointer-events:none;z-index:0;line-height:1;font-size:calc(var(--pz)*.7)}
+.f-tl{top:3px;left:4px}.f-tr{top:3px;right:4px}.f-bl{bottom:3px;left:4px}.f-br{bottom:3px;right:4px}
+.f-t{top:2px;left:50%;transform:translateX(-50%)}.f-b{bottom:2px;left:50%;transform:translateX(-50%)}.f-r{right:3px;top:50%;transform:translateY(-50%)}
+.desk{padding:4px 6px;background:linear-gradient(#ddb990,#c99f74);border-radius:5px;box-shadow:0 3px 0 #a9835c;font-size:calc(var(--pz)*.5);letter-spacing:2px}
+.sink{background:#fff;border-radius:6px;padding:2px;box-shadow:0 0 0 2px #d3e6e1}
+.counter{left:5%;right:5%;top:2px;height:22px;display:flex;align-items:center;justify-content:space-around;font-size:13px;
+  background:linear-gradient(#f3dec3,#e2c4a0);border-radius:6px;box-shadow:0 3px 0 #c8a47c}
+.has-counter .queue{padding-top:30px}
+.mat{left:4px;bottom:16px;width:30%;height:14px;border-radius:4px;background:repeating-linear-gradient(90deg,#c97b6b 0 4px,#d68f80 4px 8px);opacity:.55}
+.edoor{position:absolute;left:-6px;top:22px;width:6px;height:52px;background:linear-gradient(90deg,#bfe4ff,#eaf7ff);box-shadow:inset 0 0 0 1px #8fb8d6;z-index:3}
+.rug{left:12%;right:12%;top:12%;bottom:12%;border-radius:999px;background:radial-gradient(#ffffff70,transparent 70%),#cdeee0;opacity:.6;box-shadow:inset 0 0 0 3px #ffffff80}
+.tv{background:#3d3a4a;border-radius:4px;padding:1px 5px;box-shadow:0 2px 0 #00000030}
+.shelf{left:6%;right:6%;top:0;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;letter-spacing:3px;
+  background:#efe3d2;border-radius:3px;box-shadow:inset 0 -4px 0 #d6c3aa,0 2px 0 #c9b49b}
+.has-shelf{padding-top:16px}
+.lightbox{background:#e8f2ff;border-radius:4px;padding:2px 4px;box-shadow:0 0 0 2px #b8c9e3}
+.cart{background:#e6ebf0;border-radius:5px;padding:3px 4px;box-shadow:0 3px 0 #b7c0ca;font-size:calc(var(--pz)*.45)}
+.win{width:42%;height:7px;background:linear-gradient(90deg,#cfe9ff,#f2faff);box-shadow:0 0 0 2px #b7d3ea}
+.sofa{font-size:calc(var(--pz)*1.3)}
+/* 진료 의자 · 침대를 실제 가구처럼 */
+.slot{border:0;border-radius:10px 10px 7px 7px;background:linear-gradient(180deg,#ffffff,#eef6f4);box-shadow:0 0 0 2px #cfe3de,0 4px 0 #b9d2cb}
+.c-exam .slot{box-shadow:0 0 0 2px #d6cdee,0 4px 0 #c1b6e0}
+.c-inj .slot{box-shadow:0 0 0 2px #c9dcf0,0 4px 0 #b3c9e2}
+.c-pharm .slot{border-radius:8px;background:linear-gradient(180deg,#fff,#f3ece2);box-shadow:0 0 0 2px #e0cfb8,0 4px 0 #cbb698}
+.bed{border:0;box-shadow:0 0 0 2px #cbbdf0,0 4px 0 #b7a7e2}
+/* 그림자 · 걷기 */
+.pt::before{content:"";position:absolute;left:20%;right:20%;bottom:-1px;height:6px;background:#00000024;border-radius:50%;z-index:-1}
+.pt.walk .ani{animation:waddle .2s ease-in-out infinite alternate}
+/* 특별한 환자 */
+.pt.emerg .pt-body::after{content:"🚨";position:absolute;right:-.4em;top:-.4em;font-size:.5em;animation:blink .5s infinite}
+.pt.emerg .pt-in{filter:drop-shadow(0 0 4px #ff5d73)}
+.pt.emerg .pt-bub{border-color:#ff9fb0;background:#fff0f2}
+.pt.emerg .pt-hp i{background:#ff5d73!important}
+.pt.karen .pt-body::after{content:"🕶️";position:absolute;left:50%;top:.2em;transform:translateX(-50%);font-size:.5em;pointer-events:none}
+.pt.tantrum .ani{animation:shiver .1s infinite}
+.pt.tantrum .pt-in{filter:drop-shadow(0 0 5px #ff9a4d)}
+.pt.tantrum::after{content:"💢";position:absolute;right:-8px;top:8px;font-size:calc(var(--pz)*.65);z-index:6;pointer-events:none;animation:boing .45s infinite}
+.pt.tantrum{cursor:pointer}
+.pt-bub.multi{background:#eef5ff;border-color:#a9c7ee}
+/* 약국 창구 3개 + 대기 줄 */
+.pharm-cb{flex-direction:column;justify-content:flex-start;gap:4px}
+.pslots{display:flex;gap:5px;justify-content:center;flex:0 0 auto}
+.c-pharm .slot{width:calc(var(--pz)*1.7);height:calc(var(--pz)*2.55)}
+.c-pharm .staffs{position:absolute;left:2px;bottom:0;z-index:3}
+.queue.pq{height:auto;flex:1;min-height:0;width:100%;padding:0 0 0 calc(var(--pz)*1.1);align-content:flex-start;gap:0 1px}
+.queue.pq .pt{margin-right:calc(var(--pz)*-.25)}
+.gbar{height:12px;background:#f1e6d6;border-radius:99px;overflow:hidden;margin:3px 0 8px}
+.gbar i{display:block;height:100%;background:linear-gradient(90deg,#9fe0c8,#6cc6a5);border-radius:99px}
+.grow{display:flex;gap:5px;align-items:baseline;font-size:.95rem}
+.sbuy.lockbtn{background:#fff;color:#8a6fd6;border:3px dashed #d9ccff;box-shadow:0 4px 0 #e6ddff;padding:7px}
+.gchip.over{background:#eef0ff;border:2px solid #c9cdf5;color:#5960a8}
+.clock.over{color:#5960a8}
+.clock.over .tbar i{background:linear-gradient(90deg,#b8bdf0,#8f96e0)}
+.toast.emer{--tb:#ff9fa8;--tbg:#ffe3e6;background:#fff8f8;animation:toastIn .5s cubic-bezier(.3,1.6,.5,1),shakeX .4s .5s,toastOut .4s 2.7s forwards}
+.sb{filter:drop-shadow(0 2px 1px #0000002a)}
+
+@keyframes waddle{from{transform:rotate(-7deg) translateY(0)}to{transform:rotate(7deg) translateY(-2px)}}
+@keyframes boing{0%{transform:scale(1)}30%{transform:scale(1.2,.85)}60%{transform:scale(.92,1.1)}100%{transform:scale(1)}}
+@keyframes cardBoing{40%{transform:scale(.97)}}
+@keyframes bob{50%{transform:translateY(-3px)}}
+@keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-12px) rotate(-6deg)}}
+@keyframes arrive{from{transform:translateY(16px);opacity:0}}
+@keyframes bye{to{transform:translateY(-18px) scale(.8);opacity:0}}
+@keyframes madOut{0%,40%{transform:translateX(0)}10%,30%{transform:translateX(-4px)}20%{transform:translateX(4px)}100%{transform:translateY(12px);opacity:0}}
+@keyframes shakeX{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+@keyframes shiver{50%{transform:translateX(1px)}}
+@keyframes blink{50%{transform:scale(1.25)}}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(.3)}}
+@keyframes poof{to{transform:translate(-50%,-90%) scale(1.6);opacity:0}}
+@keyframes hl{50%{box-shadow:0 0 0 5px #ffb3c6}}
+@keyframes fade{from{opacity:0}}
+@keyframes drop{from{transform:translateY(-14px);opacity:0}}
+@keyframes toastIn{from{transform:translateY(-16px) scale(.7);opacity:0}}
+@keyframes toastOut{to{transform:translateY(-8px);opacity:0}}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}15%{opacity:1;transform:translate(-50%,-70%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-280%) scale(1)}}
+
+@media (max-width:600px){
+  #hud{padding:5px 6px;gap:4px 5px}
+  .logo{font-size:.95rem}
+  .chip{font-size:.76rem;padding:1px 7px}
+  .ibtn{width:30px;height:28px;font-size:.85rem}
+  .speed button{padding:2px 8px}
+  #goalbar{padding:3px 6px;font-size:.72rem}
+  #mapWrap{padding:3px 4px 8px}
+  #map{gap:10px;padding:9px;border-width:6px}
+  .card{border-width:4px;padding:14px 4px 4px}
+  .counter,.shelf{height:18px;font-size:11px}
+  .has-counter .queue{padding-top:22px}
+}
+
+/* ===== 하나로 이어진 오픈 플로어 + 차분한 색감 ===== */
+body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%),radial-gradient(circle at 92% 92%,#e3f4ec 0,transparent 40%)}
+.speed button.on{background:var(--mint2)}
+/* 바닥은 건물 전체에 한 장으로 깔림 */
+#map{gap:0;padding:8px;
+  background:repeating-linear-gradient(0deg,#e5dccf 0 1px,transparent 1px 44px),repeating-linear-gradient(90deg,#e5dccf 0 1px,transparent 1px 44px),linear-gradient(160deg,#fbf7f0,#f2eadf)}
+#map .card{background:none;border:0;border-radius:0;box-shadow:none;padding:22px 12px 10px;color:inherit}
+#map .card::before{content:"";position:absolute;inset:7px;border-radius:18px;z-index:0;pointer-events:none;background:var(--zone,transparent);transition:box-shadow .2s}
+#map .card::after{content:none}
+.edoor{display:none}
+#map .lk{position:relative}
+/* 구역별 바닥 */
+#map .c-ent,#map .c-wait,#map .c-cash{--zone:repeating-linear-gradient(90deg,#f1dfc3 0 46px,#e6d0ae 46px 47px),#f1dfc3}
+#map .c-ent::before,#map .c-wait::before,#map .c-cash::before{inset:0;border-radius:0}
+#map .c-rest{--zone:repeating-linear-gradient(90deg,#f3dcc2 0 30px,#e9cdad 30px 31px),#f3dcc2}
+#map .c-dept,#map .c-exam,#map .c-inj{--zone:repeating-linear-gradient(0deg,#d5ebe3 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,#d5ebe3 0 1px,transparent 1px 22px),#eef8f4}
+#map .c-pharm{--zone:repeating-linear-gradient(0deg,#d6e5f3 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,#d6e5f3 0 1px,transparent 1px 22px),#f0f6fc}
+#map .c-ward{--zone:radial-gradient(#ddd4ee 1px,transparent 1.6px) 0 0/10px 10px,#f1edf8}
+#map .c-more,#map .card.locked{--zone:radial-gradient(#d6cfc4 1px,transparent 1.6px) 0 0/9px 9px,#ebe6de;color:#8f8478}
+#map .c-more::before,#map .card.locked::before{box-shadow:inset 0 0 0 3px #e2d8ca;border:0}
+/* 진료 공간: 뒤쪽만 막힌 낮은 칸막이 (복도 쪽은 열려 있음) */
+#map .c-dept::after,#map .c-exam::after,#map .c-inj::after,#map .c-ward::after{content:"";position:absolute;left:7px;right:7px;top:7px;height:52%;z-index:0;pointer-events:none;
+  width:auto;max-width:none;transform:none;background:none;bottom:auto;
+  border:5px solid #ddd0bf;border-bottom:0;border-radius:18px 18px 0 0;box-shadow:inset 0 3px 0 #ffffff80}
+/* 표지판 */
+#map .ch{top:0;left:16px;background:#fffdf8;border:2px solid #d8c6b0;box-shadow:0 2px 0 #cbb69c;color:#6b5848}
+/* 선택 · 드롭 · 튜토리얼 강조는 구역 테두리로 */
+#map.selecting .card.target,#map .card.hover,#map .card.hl{box-shadow:none!important;animation:none}
+#map.selecting .card.target::before{box-shadow:inset 0 0 0 3px #6cc6a5}
+#map .card.hover::before{box-shadow:inset 0 0 0 4px #f0a35e!important}
+#map .card.hl::before{animation:hlz 1s ease-in-out infinite}
+@keyframes hlz{50%{box-shadow:inset 0 0 0 5px #ffc861}}
+/* 팝업 · 알림 색 덜 핑크하게 */
+#coach{border-color:#bfe3d3;box-shadow:0 5px 0 #a9d8c3,0 14px 28px #3fae8c22}
+#coach .who{background:#e6f6ef}
+#coach .txt > b:first-child{color:#3a9a7a}
+.toast{--tb:#eadccb;--tbg:#fbf3e8}
+.toast.combo{background:linear-gradient(135deg,#fffaf0,#fff1dc)}
+.toast.bad{--tb:#f1c4c4;--tbg:#fde8e8;background:#fffafa}
+.modal{box-shadow:0 0 0 3px #eadccb,0 8px 0 3px #d9c6ae,0 22px 44px #5b4a6033}
+.modal h2{color:#6f5744;text-shadow:0 3px 0 #f1e4d3}
+.box > b:first-child{color:#3a9a7a}
+.btn.pri{background:linear-gradient(180deg,#ade7d1,#88d9bc);border-color:#74cbab;box-shadow:0 4px 0 #5fb495;color:#1f5e4a}
+.btn.mint{background:linear-gradient(180deg,#ffe9b0,#ffdb80);border-color:#f3c95e;box-shadow:0 4px 0 #dbb04a;color:#6b4f12}
+.awning{background:repeating-linear-gradient(90deg,#a3dcc7 0 28px,#fffdf8 28px 56px)}
+.awning::after{background:radial-gradient(circle at 14px 0,#a3dcc7 13px,transparent 13.5px) 0 0/56px 13px repeat-x,radial-gradient(circle at 42px 0,#fffdf8 13px,transparent 13.5px) 0 0/56px 13px repeat-x;filter:drop-shadow(0 2px 0 #8ccbb4)}
+.shop-title{color:#4a9a7e;text-shadow:0 3px 0 #dcf1e8}
+.tab.on{background:#e9f7f1;border-color:#a9dfc9;box-shadow:0 4px 0 #8ccbb4;color:#2f8a6a}
+#title{background:linear-gradient(180deg,#d9f3e8,#fff7ea 60%,#fdf1e3)}
+#title h1{color:#e0955e;text-shadow:0 4px 0 #fff,0 7px 0 #f3d9c2}
+@media (max-width:600px){
+  #map{padding:5px}
+  #map .card{padding:18px 6px 6px}
+  #map .card::before,#map .c-dept::after,#map .c-exam::after,#map .c-inj::after,#map .c-ward::after{inset:4px}
+  #map .c-dept::after,#map .c-exam::after,#map .c-inj::after,#map .c-ward::after{bottom:auto;height:50%;border-width:4px}
+  #map .ch{left:10px}
+  #map .c-ent::before,#map .c-wait::before,#map .c-cash::before{inset:0}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="logo">🧑‍⚕️🏥 <span>말랑병원</span> <span id="hGrade" class="chip g">동네의원</span></div>
+    <div class="hud-mid">
+      <span id="hDay" class="chip">1일차</span>
+      <div class="clock"><span id="hClock">09:00</span><div class="tbar"><i id="hTime"></i></div></div>
+    </div>
+    <div class="hud-r">
+      <span class="chip money" id="hMoneyC">💰 <b id="hMoney">0</b></span>
+      <span class="chip" title="평판">⭐ <b id="hRep">0</b></span>
+      <span class="chip" title="목표 별">🌟 <b id="hStars">0</b></span>
+      <span class="saved" id="hSave">💾</span>
+      <div class="speed"><button data-sp="0" title="일시정지 (스페이스)">⏸</button><button data-sp="1" class="on" title="1배속">1x</button><button data-sp="2" title="2배속">2x</button><button data-sp="4" title="4배속">4x</button></div>
+      <button id="bSound" class="ibtn" title="효과음">🔊</button>
+      <button id="bGuide" class="ibtn" title="증상표">📖</button>
+      <button id="bMenu" class="ibtn" title="메인 화면">🏠</button>
+    </div>
+  </div>
+  <div id="goalbar"></div>
+  <div id="mapWrap"><div id="map"></div></div>
+</div>
+<div id="pauseOv" class="hidden"><div class="big">⏸</div>잠깐 쉬는 중이에요~<br><small style="font-weight:600;color:#9b8a9f">톡 하면 다시 시작!</small></div>
+<div id="coach" class="hidden"></div>
+<div id="toasts"></div>
+<div id="title">
+  <div class="t-ani"><span>🐶</span><span style="animation-delay:.1s">🐱</span><span style="animation-delay:.2s">🐰</span><span style="animation-delay:.3s">🐻</span><span style="animation-delay:.4s">🐼</span><span style="animation-delay:.5s">🦊</span><span style="animation-delay:.6s">🐹</span><span style="animation-delay:.7s">🐨</span></div>
+  <div class="t-hosp">🏥</div>
+  <h1>말랑병원</h1>
+  <p class="t-sub">말랑말랑 동물 친구들의 작은 동네 병원<br>🧑‍⚕️ 원장님, 오늘도 잘 부탁드려요!</p>
+  <div class="t-btns">
+    <button class="btn pri big" id="tCont">이어하기 ▶</button>
+    <button class="btn mint big" id="tNew">새로하기 ✨</button>
+    <button class="btn" id="tSound">🔊 효과음 켜짐</button>
+  </div>
+  <p class="t-foot">PC: 클릭 · 드래그 · 스페이스 일시정지 &nbsp;|&nbsp; 모바일: 톡 · 끌기</p>
+</div>
+<div id="modalRoot"></div>
+<script>
+'use strict';
+/* ===================== 데이터 ===================== */
+const SAVE_KEY = 'mallang-hospital-v1', OPT_KEY = 'mallang-hospital-opt';
+const ANIMALS = ['🐶','🐱','🐰','🐻','🐼','🦊','🐹','🐨'];
+const ANAME = {'🐶':'멍멍','🐱':'냥냥','🐰':'토토','🐻':'곰곰','🐼':'판다','🦊':'여우','🐹':'햄찌','🐨':'코코'};
+const DEPTS = {
+  int:  { name:'내과',     icon:'🩺', fee:30, price:0,    grade:0, syms:[['🤒',1,'열'],['🤧',1,'감기'],['🤢',3,'배아픔']] },
+  ort:  { name:'정형외과', icon:'🩼', fee:40, price:500,  grade:0, syms:[['🦴',1,'뼈 다침'],['🩹',4,'삐끗함']] },
+  eye:  { name:'안과',     icon:'👓', fee:45, price:1200, grade:1, syms:[['👀',1,'눈 따가움']] },
+  den:  { name:'치과',     icon:'🪥', fee:55, price:2000, grade:1, syms:[['🦷',1,'이 아픔']] },
+  skin: { name:'피부과',   icon:'🧴', fee:50, price:3200, grade:2, syms:[['🔴',1,'두드러기']] },
+  obgy: { name:'산부인과', icon:'👶', fee:60, price:4200, grade:2, syms:[['🤰',1,'임신 검진'],['🍼',1,'산후 검진']] },
+};
+const DEPT_ORDER = ['int','ort','eye','den','skin','obgy'];
+const ROOMS = {
+  ent:{name:'입구·접수',icon:'🚪'}, wait:{name:'대기실',icon:'🪑'}, cash:{name:'수납',icon:'💰'},
+  pharm:{name:'약국',icon:'💊'}, inj:{name:'주사실',icon:'💉'}, exam:{name:'검사실',icon:'🩻'},
+  ward:{name:'입원실',icon:'🛏️'}, rest:{name:'휴게실',icon:'☕'}, more:{name:'확장 예정',icon:'🏗️'},
+};
+for (const d of DEPT_ORDER) ROOMS[d] = { name:DEPTS[d].name, icon:DEPTS[d].icon };
+const BUY_ROOMS = {
+  exam:{ price:450, grade:0, desc:'❓ 원인 불명 환자의 진짜 증상을 알아내요 (🩻 X-ray · 💉 피검사)' },
+  inj: { price:350, grade:0, desc:'진료 후 💉 주사 처방 환자를 받아요 (진료비 +20)' },
+  rest:{ price:800, grade:1, desc:'지친 직원(💤)이 알아서 쉬고 돌아와요' },
+};
+const CLINIC_MUL = [1,1.25,1.5,1.8], CHAIRS = [4,6,8,10];
+const UPS = {
+  clinic:{ name:'진료실 장비', icon:'⚙️', prices:[400,900,1800], desc:l=>`진료 속도 ×${CLINIC_MUL[l]}` },
+  wait:  { name:'대기실 의자', icon:'🪑', prices:[250,600,1200], desc:l=>`의자 ${CHAIRS[l]}개` },
+  ward:  { name:'입원실 침대', icon:'🛏️', prices:[500,1100,2000], desc:l=>`침대 ${l+1}개` },
+};
+const DECOS = {
+  plant:{ name:'화분',   icon:'🪴', price:120,  grade:0, eff:.07 },
+  water:{ name:'정수기', icon:'🚰', price:250,  grade:0, eff:.07 },
+  tv:   { name:'TV',     icon:'📺', price:450,  grade:1, eff:.08 },
+  fish: { name:'어항',   icon:'🐠', price:700,  grade:1, eff:.08 },
+  kids: { name:'키즈존', icon:'🧸', price:1000, grade:2, eff:.10 },
+};
+const GRADES = ['동네의원','병원','종합병원'];
+const GRADE_TH = [{rep:55,total:50},{rep:75,total:200}];
+const ROLE = {
+  doctor: { t:'선생님', b:'🩺', n:'의사',   desc:'진료과 담당 · ⚡가 높을수록 진료가 빨라요' },
+  nurse:  { t:'간호사', b:'📋', n:'간호사', desc:'입구 환자를 자동으로 접수해요' },
+  pharm:  { t:'약사',   b:'💊', n:'약사',   desc:'약국 처리가 빨라져요' },
+  janitor:{ t:'청소부', b:'🧹', n:'청소부', desc:'대기실 쓰레기를 치워요 · 위생 점검 대비' },
+};
+const DEST = { pharm:'💊', inj:'💉', ward:'🛏️' };
+const EVENTS = {
+  flu:     { icon:'🤧', name:'독감 시즌', desc:'오늘은 🤧 감기 환자가 엄청 많이 와요! 내과를 바쁘게 돌려 봐요.' },
+  group:   { icon:'🚑', name:'단체 환자', desc:'오늘 중에 단체 환자가 한꺼번에 도착해요. 대기실을 비워 둬요!' },
+  reporter:{ icon:'📰', name:'기자 방문', desc:'기자가 취재를 와요. 화난 환자 없이 만족도가 높으면 평판이 확 올라요!' },
+  hygiene: { icon:'🧹', name:'위생 점검', desc:'오늘 위생 점검이 있어요. 청소부가 없으면 벌금이에요!' },
+};
+const LAYOUT = {
+  wide: [
+    ['ent wait wait cash','int ort exam pharm','inj ward ward more'],
+    ['ent wait wait cash rest','int ort eye den pharm','exam inj ward ward more'],
+    ['ent wait wait wait cash rest','int ort eye den skin pharm','exam obgy inj ward ward ward'],
+  ],
+  narrow: [
+    ['ent wait wait','ent wait wait','int ort exam','inj pharm cash','ward ward more'],
+    ['ent wait wait','ent wait wait','int ort eye','den exam inj','pharm cash rest','ward ward more'],
+    ['ent wait wait','ent wait wait','int ort eye','den skin obgy','exam inj pharm','cash ward ward','rest ward ward'],
+  ],
+};
+const ENT_CAP = 8, DAY_LEN = 180, SPAWN_END = 168;
+const URG_DRAIN = [0.75, 1.0, 1.7];
+
+/* ===================== 유틸 ===================== */
+const $ = s => document.querySelector(s);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const fmtN = n => Math.round(n).toLocaleString('ko-KR');
+const wpick = arr => { let r = Math.random()*arr.reduce((a,x)=>a+x[1],0); for (const x of arr) { r -= x[1]; if (r <= 0) return x[0]; } return arr[arr.length-1][0]; };
+// 받침 여부로 조사 고르기
+const jo = (w,a,b) => { const c = w.charCodeAt(w.length-1); if (c < 0xAC00 || c > 0xD7A3) return w+b; return w + (((c-0xAC00)%28) ? a : b); };
+const repStars = r => (r/20).toFixed(1);
+const setT = (sel, v) => { const e = $(sel); if (e && e._t !== v) { e._t = v; e.textContent = v; } };
+const setH = (el, h) => { if (el && el._h !== h) { el._h = h; el.innerHTML = h; } };
+
+/* ===================== 효과음 (Web Audio) ===================== */
+const OPT = (() => { try { return Object.assign({sound:true}, JSON.parse(localStorage.getItem(OPT_KEY)||'{}')); } catch(e) { return {sound:true}; } })();
+function saveOpt() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch(e) {} }
+let AC = null;
+function tone(f, d=.1, type='sine', vol=.07, delay=0, slide=0) {
+  if (!OPT.sound) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t+d);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+.01); g.gain.exponentialRampToValueAtTime(.0001, t+d);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t+d+.03);
+  } catch(e) {}
+}
+const SFX = {
+  tap:   () => tone(700,.06,'triangle',.05),
+  reg:   () => { tone(523,.08,'triangle',.07); tone(784,.1,'triangle',.07,.07); },
+  coin:  () => { tone(988,.07,'square',.035); tone(1319,.16,'square',.035,.07); },
+  wrong: () => tone(300,.28,'triangle',.08,0,150),
+  angry: () => { tone(220,.15,'sawtooth',.04,0,150); tone(160,.22,'sawtooth',.04,.13,100); },
+  combo: () => [523,659,784,1047].forEach((f,i)=>tone(f,.12,'triangle',.07,i*.07)),
+  lvl:   () => [659,880,1175].forEach((f,i)=>tone(f,.12,'sine',.08,i*.08)),
+  done:  () => tone(880,.08,'sine',.05),
+  day:   () => [392,523,659,784].forEach((f,i)=>tone(f,.18,'sine',.06,i*.12)),
+  alert: () => { tone(880,.12,'square',.035); tone(660,.12,'square',.035,.15); },
+  clean: () => tone(1200,.08,'sine',.05,0,1800),
+  buy:   () => { tone(660,.08,'triangle',.07); tone(990,.14,'triangle',.07,.08); },
+  siren: () => [0,1,2,3].forEach(i => tone(i%2 ? 660 : 960, .2, 'square', .035, i*.22)),
+  calm:  () => tone(520 + Math.random()*200, .07, 'sine', .05),
+};
+
+/* ===================== 상태 ===================== */
+let S = null; // 저장되는 상태
+let G = null; // 하루 동안의 실행 상태
+
+function newState() {
+  const s = { v:1, day:1, money:300, rep:30, stars:0, grade:0, total:0,
+    depts:{int:true}, rooms:{exam:false,inj:false,rest:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
+    staff:[], cands:[], candDay:0, tut:false, nextId:1 };
+  S = s;
+  s.staff.push(mkStaff('doctor', {dept:'int', animal:'🐻', spd:2, kind:2}));
+  return s;
+}
+function newG() {
+  return { mode:'idle', speed:1, modal:false, t:0, spawnT:2, pid:0, patients:[], dirt:[], dirtT:16,
+    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0},
+    goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
+    entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0 };
+}
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
+}
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.v === 1) return s; } catch(e) {}
+  return null;
+}
+
+/* ===================== 직원 ===================== */
+const wageOf = s => 12 + (s.spd + s.kind)*7 + (s.lvl-1)*3;
+function mkStaff(role, o={}) {
+  const s = { id:S.nextId++, role, dept:o.dept||null, animal:o.animal||pick(ANIMALS),
+    spd:o.spd||rnd(1,3), kind:o.kind||rnd(1,3), lvl:1, xp:0, fat:0, rest:0, t:0 };
+  s.wage = wageOf(s);
+  return s;
+}
+const staffName = s => `${ANAME[s.animal]} ${ROLE[s.role].t}`;
+const doctorOf = d => S.staff.find(s => s.role==='doctor' && s.dept===d);
+const doctorReady = d => { const s = doctorOf(d); return !!s && !(s.rest > 0); };
+const pharmacist = () => S.staff.find(s => s.role==='pharm' && !(s.rest > 0));
+const capOf = role => role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : 1;
+const staffInfo = s => `${s.animal} ${staffName(s)} Lv.${s.lvl} · ⚡${s.spd} 😊${s.kind} · 피로 ${Math.round(s.fat)}%${s.rest>0?' (휴식 중 ☕)':''}`;
+
+function work(s, f) {
+  if (!s) return;
+  s.fat = Math.min(100, s.fat + f);
+  s.xp++;
+  if (s.lvl < 10 && s.xp >= 4 + s.lvl*4) {
+    s.xp = 0; s.lvl++;
+    let up = '';
+    if (s.spd < 5 && (s.spd <= s.kind || s.kind >= 5)) { s.spd++; up = '⚡속도 +1'; }
+    else if (s.kind < 5) { s.kind++; up = '😊친절 +1'; }
+    s.wage = wageOf(s);
+    toast(`⬆️ ${staffName(s)} 레벨 업! Lv.${s.lvl} ${up}`, 'lvl'); SFX.lvl();
+  }
+}
+function genCands() {
+  const roles = ['nurse','doctor','pharm','janitor'];
+  const list = [];
+  if (!S.staff.some(s=>s.role==='nurse')) list.push('nurse');
+  if (S.day >= 3 && !S.staff.some(s=>s.role==='janitor')) list.push('janitor');
+  while (list.length < 3) list.push(pick(roles));
+  const b = S.grade;
+  S.cands = list.map(role => {
+    const o = {};
+    if (role==='doctor') o.dept = pick(DEPT_ORDER.filter(d=>S.depts[d]));
+    o.spd = clamp(rnd(1,3) + (Math.random() < b*.35 ? 1 : 0), 1, 5);
+    o.kind = clamp(rnd(1,3) + (Math.random() < b*.35 ? 1 : 0), 1, 5);
+    return mkStaff(role, o);
+  });
+  S.candDay = S.day;
+}
+
+/* ===================== 계산 ===================== */
+const availSyms = d => { const a = DEPTS[d].syms.filter(s => S.day >= s[1]).map(s=>s[0]); return a.length ? a : [DEPTS[d].syms[0][0]]; };
+const isLocked = id => DEPTS[id] ? !S.depts[id] : BUY_ROOMS[id] ? !S.rooms[id] : false;
+const prevOwned = id => { const i = DEPT_ORDER.indexOf(id); return i <= 0 || S.depts[DEPT_ORDER[i-1]]; };
+function baseInterval() {
+  const nd = DEPT_ORDER.filter(d=>S.depts[d]).length;
+  // 초반 며칠은 여유 있게: 1일차 +6초 → 5일차부터 보너스 없음
+  const early = Math.max(0, 6 - (S.day-1)*1.5);
+  return clamp(12.5 + early - (S.day-1)*.45 - S.grade*1.0 - (S.rep-30)*.025 - (nd-1)*.6, 4.2, 20);
+}
+function spawnInterval() {
+  let iv = baseInterval();
+  if (G.event && G.event.id==='flu') iv *= .78;
+  return iv * (.7 + Math.random()*.6);
+}
+function hospitalMul() {
+  const ks = S.staff.filter(s => !(s.rest > 0));
+  const avgK = ks.length ? ks.reduce((a,s)=>a+s.kind,0)/ks.length : 1;
+  let m = 1 - (avgK-1)*.06, d = 0;
+  for (const k in DECOS) if (S.deco[k]) d += DECOS[k].eff;
+  m *= (1 - d) * (1 + G.dirt.length*.06) * (.8 + Math.min(.4, S.day*.03));
+  return Math.max(.3, m);
+}
+function addMoney(n) { S.money += n; const c = $('#hMoneyC'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+function addRep(n) { S.rep = clamp(S.rep + n, 0, 100); }
+function gradeProgress() {
+  if (S.grade >= 2) return '최고 등급이에요! 👑';
+  const th = GRADE_TH[S.grade];
+  return `다음 등급 <b>${GRADES[S.grade+1]}</b>: ⭐ 평판 ${repStars(S.rep)}/${repStars(th.rep)} · 🐾 누적 환자 ${S.total}/${th.total}`;
+}
+function checkPromo() {
+  if (S.grade >= 2) return false;
+  const th = GRADE_TH[S.grade];
+  if (S.rep >= th.rep && S.total >= th.total) { S.grade++; return true; }
+  return false;
+}
+
+/* ===================== 목표 ===================== */
+const goalReward = () => 60 + S.day*20;
+function makeGoals() {
+  const exp = SPAWN_END / baseInterval();
+  const gs = [{ type:'treat', target:Math.max(5, Math.round(exp*.62)) }];
+  if (S.day === 1) gs.push({ type:'angry', target:2 });
+  else {
+    const opts = ['angry','combo','money']; if (S.day >= 3) opts.push('vip');
+    const t = pick(opts);
+    if (t==='angry') gs.push({ type:t, target:Math.max(1, 3 - Math.floor(S.day/6)) });
+    if (t==='combo') gs.push({ type:t, target:clamp(4 + Math.floor(S.day/2), 5, 15) });
+    if (t==='money') gs.push({ type:t, target:Math.round(exp*55*.5/10)*10 });
+    if (t==='vip')   gs.push({ type:t, target:S.day < 8 ? 2 : 3 });
+  }
+  return gs;
+}
+const goalIcon = g => ({treat:'🎯',angry:'💢',combo:'🔥',money:'💰',vip:'👑'})[g.type];
+const goalText = g => ({treat:`환자 ${g.target}명 치료`, angry:`화난 환자 ${g.target}명 이하`, combo:`${g.target}콤보 달성`, money:`수입 💰${fmtN(g.target)}`, vip:`VIP ${g.target}명 만족`})[g.type];
+function goalVal(g) { const s = G.stats; return ({treat:s.treated, angry:s.angry, combo:G.maxCombo, money:s.income, vip:s.vip})[g.type]; }
+const goalOk = g => g.type==='angry' ? G.stats.angry <= g.target : goalVal(g) >= g.target;
+const goalProg = g => g.type==='money' ? `${fmtN(goalVal(g))}/${fmtN(g.target)}` : `${goalVal(g)}/${g.target}`;
+function rollEvent() {
+  if (S.day < 3 || Math.random() > .38) return null;
+  const list = ['flu','group','reporter']; if (S.day >= 4) list.push('hygiene');
+  const id = pick(list);
+  return { id, t: id==='group' ? rnd(55,110) : id==='hygiene' ? rnd(50,140) : 0, fired:false };
+}
+</script>
+<script>
+'use strict';
+/* ===================== 화면 효과 ===================== */
+const mapEl = $('#map');
+// 맨 앞 이모지는 동그란 아이콘으로 분리
+const EMO_RE = /^((?:\p{Extended_Pictographic})(?:️|‍\p{Extended_Pictographic}|[\u{1F3FB}-\u{1F3FF}])*)\s*/u;
+const TOAST_ICON = { combo:'🔥', lvl:'⬆️', bad:'💦', ev:'📣', vip:'👑' };
+function toast(html, cls='') {
+  const m = html.match(EMO_RE);
+  const icon = m ? m[1] : (TOAST_ICON[cls] || '💬'), body = m ? html.slice(m[0].length) : html;
+  const t = document.createElement('div'); t.className = 'toast ' + cls;
+  t.innerHTML = `<span class="ti">${icon}</span><span class="tt">${body}</span>`;
+  const box = $('#toasts'); box.appendChild(t);
+  while (box.children.length > 3) box.firstChild.remove();
+  setTimeout(() => t.remove(), 3100);
+}
+function floatAt(el, text, cls='') {
+  const r = el.getBoundingClientRect();
+  const f = document.createElement('div'); f.className = 'float ' + cls; f.textContent = text;
+  f.style.left = (r.left + r.width/2) + 'px'; f.style.top = (r.top + 6) + 'px';
+  document.body.appendChild(f); setTimeout(() => f.remove(), 1200);
+}
+function say(p, text, ms=1900) {
+  p.sayEl.textContent = text; p.sayEl.classList.add('on');
+  clearTimeout(p._sayT); p._sayT = setTimeout(() => p.sayEl.classList.remove('on'), ms);
+}
+function bounce(p) { const b = p.bodyEl; b.classList.remove('boing'); void b.offsetWidth; b.classList.add('boing'); }
+function bounceEl(el) { el.classList.remove('boing'); void el.offsetWidth; el.classList.add('boing'); }
+const cardEl = id => mapEl.querySelector(`.card[data-room="${id}"]`);
+
+/* ===================== 맵 ===================== */
+const layoutMode = () => (innerWidth >= 760 && innerWidth > innerHeight*.95) ? 'wide' : 'narrow';
+function areaNames() {
+  const out = [];
+  LAYOUT.wide[S.grade].join(' ').split(/\s+/).forEach(n => { if (n !== '.' && !out.includes(n)) out.push(n); });
+  return out;
+}
+function applyLayout() {
+  if (!S) return;
+  const mode = layoutMode(), tpl = LAYOUT[mode][S.grade], cols = tpl[0].split(' ').length;
+  mapEl.style.gridTemplateAreas = tpl.map(r => `"${r}"`).join(' ');
+  mapEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(${mode==='wide'?120:104}px,1fr))`;
+  mapEl.style.maxWidth = mode==='wide' ? ['1000px','1240px','1440px'][S.grade] : '';
+  // 문 위치: 아래에 복도가 있으면 아래쪽, 맨 아랫줄 방이면 위쪽
+  const rows = tpl.map(r => r.split(' '));
+  mapEl.querySelectorAll('.card').forEach(c => {
+    let last = -1;
+    rows.forEach((r, i) => { if (r.includes(c.dataset.room)) last = i; });
+    c.dataset.door = last < rows.length - 1 ? 'b' : 't';
+  });
+}
+const F = (cls, html='') => `<div class="furn ${cls}">${html}</div>`;
+const hdr = (icon, name, extra='') => `<div class="ch"><span>${icon}</span><b>${name}</b>${extra}</div>`;
+const slotHTML = (lab='') => `<div class="slot">${lab?`<span class="lab">${lab}</span>`:''}<div class="prog"><i></i></div></div>`;
+function lockedHTML(id) {
+  const g = DEPTS[id] ? DEPTS[id].grade : BUY_ROOMS[id].grade, price = DEPTS[id] ? DEPTS[id].price : BUY_ROOMS[id].price;
+  const why = S.grade < g ? `${GRADES[g]} 승급 후` : (DEPTS[id] && !prevOwned(id)) ? '앞 진료과부터' : `상점에서 열기 💰${fmtN(price)}`;
+  return F('f-bl', '🚧') + F('f-tr', '📦') + `<div class="lk"><span class="big">🔒</span><b>${ROOMS[id].icon} ${ROOMS[id].name}</b><br><small>${why}</small></div>`;
+}
+function moreHTML() {
+  if (S.grade >= 2) return `<div class="lk"><span class="big">🌳</span><b>정원</b></div>`;
+  const th = GRADE_TH[S.grade];
+  return F('f-bl', '🚧') + F('f-br', '🧱') + `<div class="lk"><span class="big">🏗️</span><b>확장 공사 예정</b><br><small>${GRADES[S.grade+1]} 승급 조건<br>⭐ ${repStars(S.rep)}/${repStars(th.rep)} · 🐾 ${S.total}/${th.total}</small></div>`;
+}
+function cardClass(id) {
+  if (id === 'more') return 'c-more';
+  if (isLocked(id)) return 'locked';
+  return DEPTS[id] ? 'c-dept' : 'c-' + id;
+}
+function cardHTML(id) {
+  if (id === 'more') return moreHTML();
+  if (isLocked(id)) return lockedHTML(id);
+  if (DEPTS[id]) return hdr(DEPTS[id].icon, DEPTS[id].name, `<span class="syms">${availSyms(id).join('')}</span>`) +
+    `<div class="cb room1">${F('desk f-tr','🖥️📋')}${F('f-tl sink','🚰')}${F('f-bl', id === 'obgy' ? '🧺' : '🗑️')}<span class="staffs" data-staff="${id}"></span>${slotHTML()}</div>`;
+  switch (id) {
+    case 'ent': return hdr('🚪','입구·접수') + `<div class="edoor"></div><div class="cb has-counter">${F('counter','🛎️ 💻 📋')}${F('mat')}<div class="queue" id="entQ"></div><span class="welcome">어서 오세요 💕</span><span class="staffs" data-staff="ent"></span></div>`;
+    case 'wait': {
+      const pos = { plant:'f-tl', water:'f-tr', tv:'f-t tv', fish:'f-r', kids:'f-bl' };
+      const deco = Object.keys(DECOS).filter(k => S.deco[k]).map(k => F(pos[k], DECOS[k].icon)).join('');
+      return hdr('🪑','대기실') + `<div class="cb">${F('rug')}${deco}<div class="seats">${'<div class="seat"></div>'.repeat(CHAIRS[S.up.wait])}</div><div class="dirtL"></div><span class="staffs" data-staff="wait"></span></div>`;
+    }
+    case 'exam':  return hdr('🩻','검사실','<span class="syms">❓→🔍</span>') + `<div class="cb room1">${F('f-tl lightbox','🩻')}${F('f-tr','🧪')}${slotHTML('🩻 X-ray')}${slotHTML('💉 피검사')}</div>`;
+    case 'pharm': return hdr('💊','약국','<span class="syms small">창구 3개</span>') + `<div class="cb has-shelf pharm-cb">${F('shelf','💊🧴💊🧴💊🧴')}<span class="staffs" data-staff="pharm"></span><div class="pslots">${slotHTML('창구1')}${slotHTML('창구2')}${slotHTML('창구3')}</div><div class="queue pq" id="pharmQ"></div></div>`;
+    case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}</div>`;
+    case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(1+S.up.ward)}</div></div>`;
+    case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div></div>`;
+    case 'rest':  return hdr('☕','휴게실') + `<div class="cb">${F('f-tr','☕')}${F('f-tl','🪴')}${F('sofa f-b','🛋️')}<span class="staffs" data-staff="rest"></span><span class="rest-empty">조용~ 🍵</span></div>`;
+  }
+  return '';
+}
+function buildMap() {
+  mapEl.innerHTML = '';
+  G.slots = {}; G.slotEls = {}; G.progEls = {};
+  for (const id of areaNames()) {
+    const c = document.createElement('div');
+    c.className = 'card ' + cardClass(id); c.dataset.room = id; c.style.gridArea = id;
+    c.innerHTML = cardHTML(id);
+    mapEl.appendChild(c);
+    const sl = [...c.querySelectorAll('.slot,.bed')];
+    if (sl.length) { G.slotEls[id] = sl; G.slots[id] = sl.map(() => null); G.progEls[id] = sl.map(s => s.querySelector('.prog i')); }
+  }
+  G.entQ = $('#entQ'); G.cashQ = $('#cashQ'); G.pharmQ = $('#pharmQ'); G.dirtL = mapEl.querySelector('.dirtL');
+  G.seatEls = [...mapEl.querySelectorAll('.seat')]; G.seats = G.seatEls.map(() => null);
+  renderStaff();
+}
+function staffHome(s) { return s.role==='doctor' ? s.dept : s.role==='nurse' ? 'ent' : s.role==='pharm' ? 'pharm' : 'wait'; }
+function staffBadge(s) {
+  const tired = s.fat >= 80 && !(s.rest > 0);
+  return `<span class="sb${tired?' tired':''}" title="${staffName(s)} Lv.${s.lvl}">${s.animal}<i>${ROLE[s.role].b}</i>${s.rest>0?'<em>☕</em>':tired?'<em>💤</em>':''}</span>`;
+}
+function renderStaff() {
+  const groups = {};
+  for (const s of S.staff) { const h = (s.rest > 0 && S.rooms.rest) ? 'rest' : staffHome(s); (groups[h] = groups[h] || []).push(s); }
+  mapEl.querySelectorAll('[data-staff]').forEach(el => setH(el, (groups[el.dataset.staff] || []).map(staffBadge).join('')));
+  for (const d of DEPT_ORDER) { const c = cardEl(d); if (c && S.depts[d]) c.classList.toggle('closed', !doctorReady(d)); }
+}
+
+/* ===================== 환자 위치 ===================== */
+// FLIP: 위치를 옮긴 뒤 원래 자리에서 미끄러지듯 걸어가게 함
+function place(p, container) {
+  const el = p.el, first = el.isConnected ? el.getBoundingClientRect() : null;
+  container.appendChild(el);
+  if (!first) return;
+  const last = el.getBoundingClientRect(), dx = first.left - last.left, dy = first.top - last.top;
+  if (Math.abs(dx) + Math.abs(dy) < 1) return;
+  // 거리와 배속에 맞춰 걷는 시간 조절
+  const dur = clamp(Math.hypot(dx, dy) / 520, .35, 1.1) / Math.sqrt(Math.max(1, G.speed));
+  el.style.transition = 'none'; el.style.transform = `translate(${dx}px,${dy}px)`; el.style.zIndex = '30';
+  el.getBoundingClientRect();
+  el.style.transition = `transform ${dur}s ease-in-out`; el.style.transform = '';
+  el.classList.add('walk');
+  clearTimeout(p._walkT);
+  p._walkT = setTimeout(() => { el.style.zIndex = ''; el.classList.remove('walk'); }, dur*1000 + 30);
+}
+const freeSeat = () => G.seats.indexOf(null);
+function leave(p) {
+  if (p.loc === 'seat') { if (G.seats[p.slot] === p) G.seats[p.slot] = null; }
+  else if (G.slots[p.loc] && G.slots[p.loc][p.slot] === p) G.slots[p.loc][p.slot] = null;
+  p.loc = null; p.slot = -1;
+}
+function toSeat(p) {
+  leave(p);
+  const i = freeSeat();
+  if (i < 0) { p.loc = 'ent'; place(p, G.entQ); return; }
+  G.seats[i] = p; p.loc = 'seat'; p.slot = i; place(p, G.seatEls[i]);
+}
+function toCash(p) { leave(p); p.loc = 'cash'; p.cashT = G.t; place(p, G.cashQ); }
+function removeP(p, cls) {
+  if (G.sel === p) deselect();
+  leave(p); p.stage = 'gone'; p.el.classList.add(cls);
+  const el = p.el; setTimeout(() => el.remove(), 900);
+  G.patients = G.patients.filter(x => x !== p);
+}
+
+/* ===================== 환자 ===================== */
+function updBub(p) {
+  let h = '', cls = 'pt-bub';
+  switch (p.stage) {
+    case 'new': h = '👋'; break;
+    case 'reg': h = p.shown + p.extra.map(e => e.sym).join('') + (p.unknown && p.revealed ? '<small>🔍</small>' : ''); break;
+    case 'queued': h = p.done ? `${DEST[p.dest]}<small>⏳</small>` : `${p.shown}${p.extra.map(e => e.sym).join('')}<small>→${ROOMS[p.target].icon}</small>`; break;
+    case 'next': h = DEST[p.dest]; cls += ' dest'; break;
+    case 'pay': h = '💰'; cls += ' pay'; break;
+    case 'ward': h = '💤'; break;
+  }
+  if (p.extra.length && (p.stage === 'reg' || (p.stage === 'queued' && !p.done))) cls += ' multi';
+  p.bubEl.className = cls; p.bubEl.innerHTML = h;
+}
+function chooseSym() {
+  const pool = [];
+  for (const d of DEPT_ORDER) if (S.depts[d]) for (const e of availSyms(d)) pool.push([e, (G.event && G.event.id==='flu' && e==='🤧') ? 6 : 1]);
+  return wpick(pool);
+}
+function symDept(e) { for (const d of DEPT_ORDER) if (DEPTS[d].syms.some(s => s[0]===e)) return d; return 'int'; }
+function spawn(force=false, o={}) {
+  if (!force && G.patients.filter(p => p.loc==='ent').length >= ENT_CAP) return null;
+  const sym = o.sym || chooseSym();
+  const emerg = !!o.emerg;
+  const unknown = emerg ? false : o.unknown != null ? o.unknown : (S.day >= 3 && Math.random() < Math.min(.2, .07 + S.day*.012));
+  // 복합 증상: 서로 다른 두 진료과를 들러야 함
+  const owned = DEPT_ORDER.filter(d => S.depts[d]);
+  const multi = !unknown && !emerg && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 3 && Math.random() < Math.min(.22, .08 + S.day*.01)));
+  const extra = [];
+  if (multi) { const d2 = pick(owned.filter(d => d !== symDept(sym))); extra.push({ sym:pick(availSyms(d2)), dept:d2 }); }
+  // 진상 환자
+  const karen = !emerg && !G.tut && (o.karen != null ? o.karen : (S.day >= 3 && Math.random() < Math.min(.14, .07 + S.day*.006)));
+  const red = Math.min(.26, .1 + S.day*.012), r = Math.random();
+  const urg = o.urg != null ? o.urg : (r < red ? 2 : r < red + .35 ? 1 : 0);
+  let vip = false;
+  if (o.vip != null) vip = o.vip;
+  else if (emerg || karen) vip = false;
+  else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
+  else if (S.day >= 2 && Math.random() < Math.min(.1, .03 + S.day*.006)) vip = true;
+  const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:symDept(sym), unknown, revealed:false, shown:unknown?'❓':sym,
+    urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
+    extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
+  const el = document.createElement('div');
+  el.className = 'pt arrive' + (emerg ? ' emerg' : '') + (karen ? ' karen' : ''); el.dataset.id = p.id;
+  el.innerHTML = `<div class="pt-say"></div><div class="pt-in"><div class="pt-bub"></div><div class="pt-body"><span class="ani">${p.animal}</span><span class="pt-urg u${p.urg}"></span>${vip?'<span class="crown">👑</span>':''}</div><div class="pt-hp"><b>♥</b><span><i></i></span></div></div>`;
+  p.el = el; p.sayEl = el.querySelector('.pt-say'); p.bubEl = el.querySelector('.pt-bub'); p.bodyEl = el.querySelector('.pt-body'); p.hpEl = el.querySelector('.pt-hp i');
+  updBub(p);
+  G.patients.push(p);
+  if (emerg) G.entQ.prepend(el); else G.entQ.appendChild(el);
+  setTimeout(() => el.classList.remove('arrive'), 600);
+  if (vip && !G.tut) { toast('👑 VIP 환자 등장! 팁이 두둑하지만 성격이 급해요', 'vip'); SFX.alert(); }
+  if (karen && !G.karenSeen) { G.karenSeen = true; toast('🕶️ 진상 환자가 왔어요… 소란을 피우면 톡톡 눌러서 달래 주세요!', 'ev'); }
+  if (multi && !G.multiSeen) { G.multiSeen = true; toast(`🩺 복합 증상 환자! 말풍선의 증상마다 진료과를 하나씩 들러야 해요`); }
+  return p;
+}
+function spawnEmerg() {
+  const p = spawn(true, { emerg:true });
+  toast('🚑 응급 환자 도착! 28초 안에 진료실로 보내 주세요!', 'emer'); SFX.siren();
+  say(p, pick(['살려 주세요…! 🚨','빨리요 빨리!','으아앙 아파요!!']), 2500);
+}
+const KAREN_LINES = ['왜 이렇게 늦어요!!','나 먼저 해 줘요!','여기 원장 누구야?!','별점 1개 줄 거예요!','내가 누군지 알아요?!','에어컨 왜 이렇게 세요!!'];
+function updKaren(dt) {
+  for (const p of G.patients) {
+    if (!p.karen || p.calmed >= 2 || p.stage === 'svc' || p.stage === 'ward') continue;
+    if (!p.tantrum) {
+      p.tantrumT -= dt;
+      if (p.tantrumT <= 0) { p.tantrum = true; p.calm = 0; p.sayT = 0; p.el.classList.add('tantrum'); SFX.angry(); }
+    } else {
+      p.sayT -= dt;
+      if (p.sayT <= 0) { p.sayT = 2.6; say(p, pick(KAREN_LINES), 2200); }
+    }
+  }
+}
+function calmKaren(p) {
+  p.calm++; SFX.calm(); floatAt(p.el, pick(['💬','🙏','😊']), 's');
+  if (p.calm < 4) return;
+  p.tantrum = false; p.calmed++; p.el.classList.remove('tantrum'); G.stats.karenCalm++;
+  p.tantrumT = rnd(12,18); addRep(.5); SFX.reg();
+  say(p, p.calmed >= 2 ? '…원장님 덕분에 기분 풀렸어요 😌' : '흠… 알겠어요.', 2000);
+}
+function register(p) {
+  if (p.stage !== 'new') return;
+  p.stage = 'reg'; updBub(p); SFX.reg(); bounce(p);
+  if (p.vip) say(p, '👑 잘 부탁해요~'); else if (p.unknown) say(p, '어디가 아픈지 모르겠어요…');
+  toSeat(p);
+  if (G.tut === 1) setTut(2);
+}
+function breakCombo() { if (G.combo >= 3) toast('콤보가 끊겼어요… 💦'); G.combo = 0; }
+function wrongMove(p, msg='여기 아닌 것 같아요…') {
+  say(p, msg); p.pat = Math.max(1, p.pat - 18); breakCombo(); SFX.wrong(); G.stats.wrong++;
+  p.el.classList.remove('shake'); void p.el.offsetWidth; p.el.classList.add('shake');
+}
+function angry(p) {
+  p.pat = 0; p.bubEl.className = 'pt-bub mad'; p.bubEl.innerHTML = '💢';
+  say(p, p.karen ? '별점 1개 남길 거예요!! ⭐' : pick(['흥! 다른 병원 갈래요 💢','너무 오래 기다렸어요… 💢','으앙 집에 갈래 💢']));
+  const lost = p.emerg && !p.saved;
+  addRep(lost ? -8 : p.karen ? -6 : p.vip ? -6 : -3); G.stats.angry++; breakCombo(); SFX.angry();
+  if (lost) { G.stats.emergLost++; toast('🚑 응급 환자를 큰 병원으로 보냈어요… 평판이 크게 떨어졌어요', 'bad'); }
+  else if (p.karen) toast('⭐ 진상 환자가 별점 테러를 남겼어요… 😱', 'bad');
+  removeP(p, 'mad');
+}
+function pay(p) {
+  if (p.stage !== 'pay') return;
+  const fast = G.t - p.cashT < 4 ? 5 : 0;
+  const bonus = (p.emerg ? 50 + S.day*5 : 0) + (p.multi ? 20 : 0);
+  const tip = (p.karen ? 0 : Math.round(p.fee * .25 * p.pat / 100) + fast) + (p.vip ? 60 + S.day*8 : 0) + bonus;
+  const total = p.fee + tip;
+  addMoney(total); G.stats.income += total; G.stats.treated++; S.total++;
+  if (p.vip) G.stats.vip++;
+  addRep(p.vip ? 1.5 : p.karen ? 1.5 : .45);
+  if (p.multi) setTimeout(() => p.el.isConnected && floatAt(p.el, '복합 진료 완료! +20', 's'), 300);
+  G.combo++; G.maxCombo = Math.max(G.maxCombo, G.combo);
+  floatAt(p.el, `+💰${total}`);
+  if (fast) setTimeout(() => p.el.isConnected && floatAt(p.el, '빠른 수납 팁 ✨', 's'), 150);
+  SFX.coin();
+  say(p, p.karen ? '…뭐, 나쁘지 않았어요. 흥.' : pick(['고마워요 원장님! 💕','다 나았어요~ 🎵','또 올게요! (아프진 않고요)','말랑병원 최고 ✨']), 900);
+  if (G.combo % 5 === 0) {
+    const b = 15 * (G.combo/5); addMoney(b); G.stats.income += b;
+    toast(`${G.combo}콤보! 친절 병원 ✨ +💰${b}`, 'combo'); SFX.combo();
+  }
+  removeP(p, 'bye');
+  if (G.tut === 6) setTut(7);
+}
+
+/* ===================== 선택 / 안내 ===================== */
+function validRooms(p) {
+  const v = [];
+  if (!p.done) { DEPT_ORDER.forEach(d => S.depts[d] && v.push(d)); if (S.rooms.exam && p.unknown && !p.revealed) v.push('exam'); }
+  else { v.push('pharm', 'ward'); if (S.rooms.inj) v.push('inj'); }
+  if (p.loc === 'ent' && freeSeat() >= 0) v.push('wait');
+  return v;
+}
+function markTargets(p) {
+  const v = validRooms(p);
+  mapEl.classList.add('selecting');
+  mapEl.querySelectorAll('.card').forEach(c => c.classList.toggle('target', v.includes(c.dataset.room)));
+}
+function clearTargets() { mapEl.classList.remove('selecting'); mapEl.querySelectorAll('.card.target').forEach(c => c.classList.remove('target')); }
+function select(p) { deselect(); G.sel = p; p.el.classList.add('sel'); markTargets(p); }
+function deselect() { if (G && G.sel) { G.sel.el.classList.remove('sel'); G.sel = null; } clearTargets(); }
+function lockedInfo(id) {
+  if (id === 'more') { toast('🏗️ ' + gradeProgress()); return; }
+  const g = DEPTS[id] ? DEPTS[id].grade : BUY_ROOMS[id].grade;
+  const nm = ROOMS[id].name;
+  if (S.grade < g) toast(`🔒 ${jo(GRADES[g],'이','가')} 되면 ${jo(nm,'을','를')} 열 수 있어요<br><small>${gradeProgress()}</small>`);
+  else toast(`🔒 ${jo(nm,'은','는')} 영업 전 🛒 상점에서 열 수 있어요`);
+}
+function queueTo(p, r) {
+  p.stage = 'queued'; p.target = r; p.assignT = performance.now();
+  // 약국은 의자 대신 약국 앞에 줄을 섬 (여러 명 한꺼번에 보내기 가능)
+  if (r === 'pharm' && G.pharmQ) { leave(p); p.loc = 'pharmQ'; place(p, G.pharmQ); }
+  updBub(p); SFX.tap();
+}
+function sendTo(p, r) {
+  if (p.stage === 'gone') return;
+  if (isLocked(r) || r === 'more') { lockedInfo(r); return; }
+  if (r === 'wait') { if (p.loc === 'ent' && p.stage !== 'new' && freeSeat() >= 0) { toSeat(p); SFX.tap(); } return; }
+  if (!['reg','queued','next'].includes(p.stage)) { if (p.stage === 'new') say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
+  if (!p.done) {
+    if (DEPTS[r]) { queueTo(p, r); return; }
+    if (r === 'exam') { if (p.unknown && !p.revealed) queueTo(p, 'exam'); else say(p, '검사는 안 해도 될 것 같아요~'); return; }
+    if (DEST[r]) { say(p, '아직 진료를 못 받았어요!'); SFX.wrong(); }
+    return;
+  }
+  if (DEST[r]) {
+    if (r !== p.dest) { wrongMove(p); return; }
+    if (r === 'ward') { toWard(p); return; }
+    queueTo(p, r); return;
+  }
+  if (DEPTS[r] || r === 'exam') say(p, `진료는 끝났어요! ${DEST[p.dest]} 쪽으로 가요`);
+}
+function toWard(p) {
+  const i = G.slots.ward.indexOf(null);
+  if (i < 0) { say(p, '침대가 꽉 찼대요… 약 받아 갈게요 💊', 2400); p.dest = 'pharm'; updBub(p); return; }
+  leave(p); G.slots.ward[i] = p; p.loc = 'ward'; p.slot = i; p.stage = 'ward';
+  place(p, G.slotEls.ward[i]); updBub(p); SFX.done(); say(p, '푹 쉬다 갈게요~ 💤');
+}
+</script>
+<script>
+'use strict';
+/* ===================== 진료실 처리 ===================== */
+function treatDur(r) {
+  if (G.tut) return 3;
+  const doc = doctorOf(r);
+  let d = 7 / (.5 + .25*doc.spd) / CLINIC_MUL[S.up.clinic];
+  if (doc.fat >= 100) d /= .65;
+  return d;
+}
+function svcDur(r) {
+  if (r === 'exam') return 3.5;
+  if (r === 'inj') return 4.5;
+  if (G.tut) return 2.5;
+  const ph = pharmacist();
+  return ph ? 4 / (.5 + .25*ph.spd) * (ph.fat >= 100 ? 1.5 : 1) : 6;
+}
+const roomReady = r => DEPTS[r] ? doctorReady(r) : true;
+function nextInQueue(r) {
+  let best = null;
+  // 응급 환자 > 소란 중인 진상(새치기) > 먼저 온 순서
+  const rank = p => p.emerg && !p.saved ? 0 : p.tantrum ? 1 : 2;
+  for (const p of G.patients) if (p.stage === 'queued' && p.target === r && (!best || rank(p) < rank(best) || (rank(p) === rank(best) && p.assignT < best.assignT))) best = p;
+  return best;
+}
+function enterRoom(r, i, p) {
+  if (G.sel === p) deselect();
+  leave(p); G.slots[r][i] = p; p.loc = r; p.slot = i; p.stage = 'svc'; p.svc = 0;
+  if (DEPTS[r]) { p.phase = 'check'; p.dur = .9; } else { p.phase = 'treat'; p.dur = svcDur(r); }
+  place(p, G.slotEls[r][i]); updBub(p);
+  if (r === 'pharm' && G.tut === 4) setTut(5);
+}
+function rollDest(r, p) {
+  if (G.tut) return 'pharm';
+  if (p && p.emerg) r = 'obgy'; // 응급 환자도 입원 확률 높게
+  const opts = [['pharm', 6]];
+  if (S.rooms.inj) opts.push(['inj', 3]);
+  const beds = G.slots.ward.filter(x => !x).length - G.patients.filter(p => p.dest === 'ward' && (p.stage === 'next' || p.stage === 'svc')).length;
+  if (beds > 0) opts.push(['ward', r === 'obgy' ? 5 : 1.4]);
+  return wpick(opts);
+}
+function svcStep(r, i, p) {
+  if (p.phase === 'check') {
+    let ok;
+    if (p.unknown && !p.revealed) {
+      ok = Math.random() < .5; // 검사 없이 보내면 50% 도박
+      if (ok) { p.revealed = true; p.dept = r; p.sym = pick(availSyms(r)); p.shown = p.sym; say(p, '아하, 이거였군요! ' + p.sym); }
+    } else {
+      // 복합 증상: 남은 증상 중 이 과에 맞는 게 있으면 그걸 먼저 진료
+      const k = p.dept === r ? -1 : p.extra.findIndex(e => e.dept === r);
+      if (k >= 0) { const cur = { sym:p.sym, dept:p.dept }; p.sym = p.extra[k].sym; p.dept = r; p.shown = p.sym; p.extra[k] = cur; }
+      ok = p.dept === r;
+    }
+    if (!ok) { G.slots[r][i] = null; p.stage = 'reg'; p.target = null; wrongMove(p); toSeat(p); updBub(p); return; }
+    p.phase = 'treat'; p.svc = 0; p.dur = treatDur(r);
+    if (p.emerg && !p.saved) { p.saved = true; G.stats.emergOk++; addRep(2); toast('🚑 응급 처치 시작! 원장님 최고예요 ✨', 'lvl'); SFX.combo(); }
+    if (G.tut === 2) setTut(3);
+    return;
+  }
+  G.slots[r][i] = null;
+  if (DEPTS[r]) {
+    p.fee += DEPTS[r].fee * (p.urg === 2 ? 2 : 1) * (p.emerg ? 1.5 : 1);
+    work(doctorOf(r), 7);
+    if (p.extra.length) {
+      const nx = p.extra.shift();
+      p.sym = nx.sym; p.dept = nx.dept; p.shown = nx.sym; p.pat = Math.min(100, p.pat + 15); p.stage = 'reg'; p.target = null;
+      toSeat(p); updBub(p); bounce(p); SFX.done();
+      say(p, `다음은 ${DEPTS[nx.dept].name}! ${nx.sym}`, 2200);
+      return;
+    }
+    p.done = true; p.dest = rollDest(r, p); p.stage = 'next';
+    toSeat(p); updBub(p); bounce(p); SFX.done();
+    if (G.tut === 3) setTut(4);
+  } else if (r === 'exam') {
+    p.revealed = true; p.shown = p.sym; p.fee += 15; p.stage = 'reg';
+    toSeat(p); updBub(p); say(p, '검사 결과 나왔어요! ' + p.sym); SFX.done();
+  } else {
+    p.fee += r === 'pharm' ? 10 : 20;
+    if (r === 'pharm') work(pharmacist(), 5);
+    p.stage = 'pay'; toCash(p); updBub(p); SFX.done();
+    if (G.tut === 5) setTut(6);
+  }
+}
+function updRooms(dt) {
+  for (const r in G.slots) {
+    if (r === 'ward') continue;
+    const arr = G.slots[r];
+    for (let i = 0; i < arr.length; i++) {
+      const p = arr[i];
+      if (p) { p.svc += dt; if (p.svc >= p.dur) svcStep(r, i, p); }
+      else if (roomReady(r)) { const q = nextInQueue(r); if (q) enterRoom(r, i, q); }
+    }
+  }
+  // 서 있는 환자는 빈 의자로
+  if (G.seats.includes(null)) { const s = G.patients.find(p => p.loc === 'ent' && p.stage !== 'new' && p.stage !== 'gone'); if (s) toSeat(s); }
+}
+
+/* ===================== 직원 / 청소 / 인내심 ===================== */
+function isIdle(s) {
+  if (s.role === 'doctor') return !(G.slots[s.dept] && G.slots[s.dept][0]);
+  if (s.role === 'pharm') return !(G.slots.pharm && G.slots.pharm.some(Boolean));
+  return true;
+}
+function updStaff(dt) {
+  let resting = S.staff.filter(s => s.rest > 0).length;
+  for (const s of S.staff) {
+    if (s.rest > 0) { s.rest -= dt; s.fat = Math.max(0, s.fat - dt*12); if (s.rest <= 0) { s.rest = 0; s.fat = 0; } continue; }
+    if (S.rooms.rest && s.fat >= 80 && resting < 2 && isIdle(s)) { s.rest = 9; resting++; continue; }
+    const tm = s.fat >= 100 ? .6 : 1;
+    if (s.role === 'nurse') {
+      s.t -= dt*tm;
+      if (s.t <= 0) {
+        const p = G.patients.find(x => x.stage === 'new');
+        if (p) { register(p); work(s, 4); s.t = 3.4 - s.spd*.45; } else s.t = .3;
+      }
+    } else if (s.role === 'janitor') {
+      if (G.dirt.length) { s.t += dt*tm; if (s.t >= 5 - s.spd*.7) { s.t = 0; cleanDirt(G.dirt[0], true); work(s, 6); } }
+      else s.t = 0;
+    }
+  }
+}
+function addDirt() {
+  const d = document.createElement('div'); d.className = 'dirt';
+  d.textContent = pick(['🧻','💧','🍂','🥤','🍬']);
+  d.style.left = rnd(6,90) + '%'; d.style.top = rnd(12,88) + '%';
+  G.dirtL.appendChild(d); G.dirt.push(d);
+}
+function cleanDirt(d, auto) {
+  if (!G.dirt.includes(d)) return;
+  G.dirt = G.dirt.filter(x => x !== d); d.classList.add('gone'); setTimeout(() => d.remove(), 400);
+  SFX.clean(); if (!auto) floatAt(d, '반짝 ✨', 's');
+}
+function updDirt(dt) {
+  if (!G.dirtL) return;
+  G.dirtT -= dt;
+  if (G.dirtT <= 0) { G.dirtT = Math.max(7, rnd(15,24) - G.patients.length*.5); if (G.dirt.length < 6) addDirt(); }
+}
+function updPatience(dt) {
+  const hm = hospitalMul();
+  const noisy = G.patients.some(p => p.tantrum);
+  for (const p of G.patients.slice()) {
+    if (p.stage === 'svc' || p.stage === 'ward') continue;
+    if (p.emerg && !p.saved) { p.pat -= dt * 100/28; if (p.pat <= 0) angry(p); continue; } // 응급: 28초 제한
+    let lm = p.loc === 'cash' ? .45 : p.loc === 'pharmQ' ? .6 : p.loc === 'ent' ? (p.stage === 'new' ? 1 : 1.2) : 1;
+    if (noisy && !p.tantrum && (p.loc === 'seat' || p.loc === 'ent')) lm *= 1.4; // 진상 소란에 다들 지침
+    if (p.multi) lm *= .8;
+    p.pat -= dt * URG_DRAIN[p.urg] * (p.vip ? 1.5 : 1) * hm * lm;
+    if (p.pat <= 0) angry(p);
+  }
+}
+function updEvent() {
+  const ev = G.event;
+  if (!ev || ev.fired || !ev.t || G.t < ev.t) return;
+  ev.fired = true;
+  if (ev.id === 'group') {
+    const n = rnd(4,6) + S.grade;
+    toast('🚑 단체 환자가 도착했어요! 힘내요 원장님!', 'ev'); SFX.alert();
+    for (let k = 0; k < n; k++) setTimeout(() => { if (G.mode === 'play') spawn(true); }, k*250);
+  } else if (ev.id === 'hygiene') {
+    SFX.alert();
+    if (!S.staff.some(s => s.role === 'janitor')) {
+      const f = 80 + S.day*10; addMoney(-f); G.stats.fine = f;
+      toast(`🧹 위생 점검! 청소부가 없어서 벌금 💸 -${f}… 청소부를 고용해 봐요`, 'bad');
+    } else if (G.dirt.length <= 2) { addRep(4); toast('🧹 위생 점검 통과! 반짝반짝 칭찬받았어요 ✨ 평판 UP', 'ev'); }
+    else toast('🧹 위생 점검 통과! 조금만 더 깨끗하면 좋겠대요', 'ev');
+  }
+}
+
+/* ===================== 튜토리얼 ===================== */
+function coach(html, btns='') {
+  const c = $('#coach');
+  c.innerHTML = `<div class="who">🐨</div><div class="txt"><b>코코 실장</b><br>${html}${btns?`<div class="btns">${btns}</div>`:''}</div>`;
+  c.classList.remove('hidden'); $('#mapWrap').classList.add('coachpad');
+}
+function hideCoach() { $('#coach').classList.add('hidden'); $('#mapWrap').classList.remove('coachpad'); }
+function setTut(n) {
+  G.tut = n;
+  mapEl.querySelectorAll('.hl').forEach(e => e.classList.remove('hl'));
+  const hl = id => { const c = cardEl(id); if (c) c.classList.add('hl'); };
+  const skip = '<button class="btn" data-act="skipTut">건너뛰기</button>';
+  const doc = doctorOf('int');
+  switch (n) {
+    case 1: coach('원장님, 첫 환자가 왔어요! 🐰<br>입구의 환자를 <b>톡</b> 눌러서 <b>접수</b>해 주세요 👆', skip); hl('ent'); break;
+    case 2: coach('말풍선에 <b>🤒 열</b>이 보이죠? 열은 <b>🩺 내과</b>예요!<br>환자를 <b>끌어서</b> 내과에 놓거나, <b>환자 톡 → 내과 톡</b>!<br><small>진료과 카드 오른쪽 위에 받는 증상이 적혀 있어요</small>', skip); hl('int'); break;
+    case 3: coach(`${jo(doc ? staffName(doc) : '의사 선생님','이','가')} 진료 중이에요… 🩺<br><small>진료받는 동안엔 하트가 줄지 않아요</small>`); break;
+    case 4: coach('진료 끝! 환자 머리 위에 <b>💊</b>가 떴어요.<br><b>💊 약국</b>으로 안내해 주세요!<br><small>💉는 주사실, 🛏️는 입원실이에요. 틀리면 하트가 줄어요</small>', skip); hl('pharm'); break;
+    case 5: coach('약 받는 중이에요 💊 조금만 기다려요~'); break;
+    case 6: coach('이제 <b>💰 수납</b> 창구에서 환자를 <b>톡!</b><br><small>빨리 받을수록 팁이 붙고, 실수 없이 이어 가면 콤보 보너스! 🔥</small>', skip); hl('cash'); break;
+    case 7: coach('완벽해요 원장님! 🎉<br>머리 위 <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>은 급한 정도예요. <b>빨강</b>은 진료비 <b>2배</b>지만 금방 지쳐요.<br><b>♥ 하트</b>가 다 닳으면 💢 화내고 가 버리니 조심!', '<button class="btn pri" data-act="endTut">영업 시작! ☀️</button>'); break;
+  }
+}
+function endTut() {
+  G.tut = 0; S.tut = true; G.spawnT = 6; save(); hideCoach();
+  mapEl.querySelectorAll('.hl').forEach(e => e.classList.remove('hl'));
+  toast(`☀️ ${S.day}일차 영업 시작! 오늘도 힘내요 원장님`);
+}
+
+/* ===================== 메인 루프 ===================== */
+function update(dt) {
+  const frozen = G.tut > 0;
+  if (!frozen) {
+    G.t += dt;
+    if (G.t < SPAWN_END) { G.spawnT -= dt; if (G.spawnT <= 0) G.spawnT = spawn() ? spawnInterval() : 1.5; }
+    else if (!G.closedMsg) { G.closedMsg = true; toast('🚪 오늘 접수는 마감이에요! 남은 환자를 돌봐 줘요'); }
+    if (!G.warned && G.t >= DAY_LEN - 30) { G.warned = true; toast('⏰ 곧 영업 종료예요! (17:30)'); }
+    if (G.emergTimes.length && G.t >= G.emergTimes[0] && G.t < SPAWN_END) { G.emergTimes.shift(); spawnEmerg(); }
+    updEvent(); updDirt(dt); updKaren(dt); updPatience(dt);
+  }
+  updRooms(dt); updStaff(dt);
+  // 영업 종료 후에도 남은 환자를 모두 처리해야 하루가 끝남 (입원 환자는 결산 때 퇴원)
+  if (!frozen && G.t >= DAY_LEN) {
+    const left = G.patients.filter(p => p.stage !== 'ward').length;
+    if (!G.overtime && left) { G.overtime = true; toast(`🌙 영업 종료! 남은 환자 ${left}명을 끝까지 돌봐 주세요`, 'ev'); }
+    if (!left) endDay();
+  }
+}
+function clockStr(t) {
+  const m = Math.floor(540 * t / DAY_LEN), h = 9 + Math.floor(m/60), mm = Math.floor(m%60/10)*10;
+  return `${String(h).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+}
+function updateHUD() {
+  if (!S) return;
+  setT('#hMoney', fmtN(S.money)); $('#hMoneyC').classList.toggle('neg', S.money < 0);
+  setT('#hRep', repStars(S.rep)); setT('#hStars', String(S.stars));
+  setT('#hDay', `${S.day}일차`); setT('#hGrade', GRADES[S.grade]);
+  const t = G.mode === 'play' ? G.t : G.mode === 'summary' ? DAY_LEN : 0;
+  setT('#hClock', clockStr(t)); $('#hTime').style.width = Math.min(100, t/DAY_LEN*100) + '%';
+  $('#hClock').parentNode.classList.toggle('over', G.mode === 'play' && t >= DAY_LEN);
+}
+function renderGoals() {
+  if (!S) return;
+  let h = G.goals.map(g => {
+    const ok = goalOk(g), cls = g.type === 'angry' ? (ok ? '' : 'bad') : ok ? 'ok' : '';
+    return `<span class="gchip ${cls}">${goalIcon(g)} ${goalText(g)} <b>${goalProg(g)}</b>${ok && g.type !== 'angry' ? ' ✅' : ''}</span>`;
+  }).join('');
+  if (G.event) h += `<span class="gchip ev">${EVENTS[G.event.id].icon} ${EVENTS[G.event.id].name}</span>`;
+  if (G.combo >= 2) h += `<span class="gchip combo">🔥 ${G.combo}콤보</span>`;
+  if (G.mode === 'play' && G.t >= DAY_LEN) h += `<span class="gchip over">🌙 연장 영업 · 남은 환자 ${G.patients.filter(p => p.stage !== 'ward').length}명</span>`;
+  else if (G.mode === 'play' && G.t >= SPAWN_END) h += `<span class="gchip over">🚪 접수 마감</span>`;
+  setH($('#goalbar'), h);
+}
+function renderDyn(raw) {
+  for (const p of G.patients) {
+    const w = Math.round(Math.max(0, p.pat));
+    if (p._w !== w) { p._w = w; p.hpEl.style.width = w + '%'; p.el.classList.toggle('low', w < 30); p.el.classList.toggle('mid', w >= 30 && w < 60); }
+  }
+  for (const r in G.progEls) G.progEls[r].forEach((bar, i) => {
+    if (!bar) return;
+    const p = G.slots[r][i];
+    bar.style.width = (p ? Math.min(100, p.svc/p.dur*100) : 0) + '%';
+    bar.parentNode.classList.toggle('chk', !!p && p.phase === 'check');
+  });
+  G.staffT -= raw;
+  if (G.staffT <= 0) { G.staffT = .25; renderStaff(); }
+  updateHUD(); renderGoals();
+}
+let lastT = performance.now();
+function frame(now) {
+  const raw = Math.min(.1, (now - lastT)/1000); lastT = now;
+  if (G && G.mode === 'play') {
+    if (G.speed > 0 && !G.modal) update(raw * G.speed);
+    if (G.mode === 'play') renderDyn(raw);
+  }
+  requestAnimationFrame(frame);
+}
+</script>
+<script>
+'use strict';
+/* ===================== 모달 ===================== */
+function openModal(html, cls='') {
+  closeModal();
+  const b = document.createElement('div'); b.className = 'mback';
+  b.innerHTML = `<div class="modal ${cls}">${html}</div>`;
+  $('#modalRoot').appendChild(b);
+  return b.firstChild;
+}
+function closeModal() { $('#modalRoot').innerHTML = ''; }
+
+/* ===================== 하루 흐름 ===================== */
+function prepDay() {
+  G = newG(); G.mode = 'prep';
+  if (S.candDay !== S.day) genCands();
+  G.goals = makeGoals(); G.event = rollEvent();
+  const vg = G.goals.find(g => g.type === 'vip');
+  if (vg) G.vipTimes = Array.from({length:vg.target+1}, () => rnd(8,150)).sort((a,b) => a-b);
+  const ne = S.day < 2 ? 0 : 1 + (S.day >= 5 ? 1 : 0) + S.grade;
+  G.emergTimes = Array.from({length:ne}, () => rnd(25,150)).sort((a,b) => a-b);
+  hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
+  showPrep();
+}
+function showPrep() {
+  const ev = G.event ? EVENTS[G.event.id] : null;
+  const greet = pick(['오늘도 동물 친구들이 기다려요 🐾','좋은 아침이에요, 원장님! ☀️','말랑말랑한 하루 되세요 💕','커피 한 잔 하고 시작해요 ☕']);
+  openModal(`<h2>☀️ ${S.day}일차 아침</h2><p class="sub">${greet}</p>
+    <div class="box"><b>🎯 오늘의 목표</b><br>${G.goals.map(g => `· ${goalIcon(g)} ${goalText(g)}`).join('<br>')}<br><small>목표마다 보너스 💰${goalReward()} + 🌟 별 1개</small></div>
+    <div class="box">${ev ? `<b>${ev.icon} 오늘의 이벤트: ${ev.name}</b><br><small>${ev.desc}</small>` : '🌤️ 오늘은 평화로운 날이에요'}</div>
+    <div class="box">🏥 <b>${GRADES[S.grade]}</b> · 💰 ${fmtN(S.money)} · 👩‍⚕️ 직원 ${S.staff.length}명 (일급 합계 💰${fmtN(S.staff.reduce((a,s)=>a+s.wage,0))})<br><small>${gradeProgress()}</small></div>
+    <div class="brow">
+      <button class="btn" data-act="shop:dept">🛒 상점</button>
+      <button class="btn" data-act="shop:staff">👩‍⚕️ 직원</button>
+      <button class="btn" data-act="guide">📖 증상표</button>
+      <button class="btn" data-act="sound">${OPT.sound?'🔊':'🔇'}</button>
+    </div>
+    <div class="brow"><button class="btn pri big" data-act="start">영업 시작 ▶</button></div>`);
+}
+function startDay() {
+  closeModal();
+  G.mode = 'play'; G.t = 0; G.spawnT = 2; G.repStart = S.rep; G.moneyStart = S.money;
+  S.staff.forEach(s => { s.fat = 0; s.rest = 0; s.t = 0; });
+  setSpeed(S.tut ? (OPT.speed || 1) : 1); SFX.day();
+  if (S.day === 1 && !S.tut) { spawn(true, {sym:'🤒', urg:1, vip:false, unknown:false, animal:'🐰'}); setTut(1); }
+  else toast(`☀️ ${S.day}일차 영업 시작! 오늘도 힘내요 원장님`);
+  const ev = G.event && EVENTS[G.event.id];
+  if (ev) setTimeout(() => toast(`${ev.icon} 오늘의 이벤트: ${ev.name}`, 'ev'), 400);
+}
+function endDay() {
+  if (G.mode !== 'play') return;
+  G.mode = 'summary'; deselect(); hideCoach(); setSpeed(1);
+  const st = G.stats;
+  let autoPay = 0;
+  for (const p of G.patients.slice()) {
+    if (p.stage === 'pay') { addMoney(p.fee); st.income += p.fee; st.treated++; S.total++; if (p.vip) st.vip++; addRep(.5); autoPay++; removeP(p, 'bye'); }
+    else if (p.stage === 'ward') {
+      const amt = p.fee + 120 + S.day*6;
+      addMoney(amt); st.income += amt; st.wardIncome += amt; st.wardN++; st.treated++; S.total++; if (p.vip) st.vip++;
+      addRep(1.5); floatAt(p.el, `+💰${amt}`); removeP(p, 'bye');
+    } else removeP(p, 'bye');
+  }
+  G.dirt.forEach(d => d.remove()); G.dirt = [];
+  let repMsg = '';
+  if (G.event && G.event.id === 'reporter') {
+    const tot = st.treated + st.angry, sat = tot ? st.treated/tot : 0;
+    if (sat >= .85 && st.treated >= 5) { addRep(10); repMsg = '📰 "친절한 말랑병원" 기사가 났어요! 평판 대폭 상승 ⭐'; }
+    else repMsg = '📰 평범한 기사가 실렸어요. 다음엔 더 잘할 수 있어요!';
+  }
+  let bonus = 0, got = 0;
+  const res = G.goals.map(g => { const ok = goalOk(g); if (ok) { bonus += goalReward(); got++; } return [g, ok]; });
+  addMoney(bonus); S.stars += got; addRep(got);
+  const wages = S.staff.reduce((a,s) => a + s.wage, 0); addMoney(-wages);
+  const net = st.income + bonus - wages - st.fine, dRep = S.rep - G.repStart;
+  const cmt = st.angry === 0 && st.treated >= 5 ? '화난 환자 0명! 정말 다정한 병원이에요 💕' : net > 0 ? '오늘도 수고 많았어요, 원장님! 🌙' : '힘든 하루였죠? 내일은 더 잘될 거예요 🍀';
+  SFX.day(); updateHUD();
+  const row = (a, b, cls='') => `<div class="row"><span>${a}</span><b class="${cls}">${b}</b></div>`;
+  openModal(`<h2>🌙 ${S.day}일차 영업 끝!</h2><p class="sub">${cmt}</p>
+    <div class="box">
+      ${row('🩹 치료한 환자', `${st.treated}명`)}
+      ${st.wardN ? row('　└ 🛏️ 입원 후 퇴원', `${st.wardN}명`) : ''}
+      ${autoPay ? row('　└ 💰 마감 자동 수납', `${autoPay}명`) : ''}
+      ${row('💢 화난 환자', `${st.angry}명`)}
+      ${st.emergOk + st.emergLost ? row('🚑 응급 환자 살림', `${st.emergOk} / ${st.emergOk + st.emergLost}명`) : ''}
+      ${st.karenCalm ? row('🕶️ 진상 달래기', `${st.karenCalm}번`) : ''}
+      ${row('🔥 최대 콤보', `${G.maxCombo}`)}
+    </div>
+    <div class="box">
+      ${row('진료 수입', `+💰${fmtN(st.income - st.wardIncome)}`, 'plus')}
+      ${st.wardIncome ? row('입원 퇴원비', `+💰${fmtN(st.wardIncome)}`, 'plus') : ''}
+      ${bonus ? row('목표 보너스', `+💰${fmtN(bonus)}`, 'plus') : ''}
+      ${row(`직원 일급 (${S.staff.length}명)`, `-💰${fmtN(wages)}`, 'minus')}
+      ${st.fine ? row('위생 벌금', `-💰${fmtN(st.fine)}`, 'minus') : ''}
+      <div class="row tot"><span>순이익</span><b class="${net >= 0 ? 'plus' : 'minus'}">${net >= 0 ? '+' : ''}💰${fmtN(net)}</b></div>
+    </div>
+    <div class="box"><b>🎯 오늘의 목표</b><br>${res.map(([g, ok]) => `${ok ? '✅' : '❌'} ${goalText(g)} ${ok ? '<span class="stars">+🌟</span>' : ''}`).join('<br>')}</div>
+    <div class="box">⭐ 평판 ${repStars(G.repStart)} → <b>${repStars(S.rep)}</b> <small>(${dRep >= 0 ? '+' : ''}${(dRep/20).toFixed(2)})</small>${repMsg ? '<br>' + repMsg : ''}</div>
+    <div class="brow"><button class="btn pri big" data-act="sumOk">다음 날로 🌙</button></div>`);
+}
+function nextDay() {
+  S.day++;
+  S.staff.forEach(s => { s.fat = 0; s.rest = 0; s.t = 0; });
+  const promo = checkPromo();
+  genCands(); save();
+  if (promo) showPromo(); else prepDay();
+}
+function showPromo() {
+  SFX.combo();
+  openModal(`<h2>🎉 축하해요 원장님!</h2><div class="promo">🏥✨</div>
+    <p class="sub">말랑병원이 <b>${GRADES[S.grade]}</b>으로 승급했어요!<br>병원이 넓어져서 새로운 진료과와 방을 열 수 있어요 🏗️</p>
+    <div class="brow"><button class="btn pri" data-act="promoOk">넓어진 병원 구경하기 ✨</button></div>`);
+}
+
+/* ===================== 상점 ===================== */
+const coin = n => `<span class="coin">💰</span>${fmtN(n)}`;
+const dots = (n, cls) => `<span class="dots ${cls}">${'<i class="on"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
+const ROLE_TONE = { doctor:'sky', nurse:'mint', pharm:'lav', janitor:'lemon' };
+// 상점 카드 한 장
+function itemHTML(o) {
+  const st = o.own ? ' own' : o.dis ? ' dim' : '';
+  return `<div class="sitem t-${o.tone || 'pink'}${st}">
+    ${o.tag ? `<span class="stag">${o.tag}</span>` : ''}${o.own ? '<span class="stamp">보유 중 ✓</span>' : ''}
+    <div class="sicon">${o.icon}</div>
+    <div class="sname">${o.name}</div>
+    <div class="sdesc">${o.desc}</div>${o.extra || ''}
+    <button class="sbuy${o.lock ? ' lockbtn' : ''}" data-act="${o.act || 'buy:' + o.key}" ${o.dis || o.own ? 'disabled' : ''}>${o.lab}</button>
+  </div>`;
+}
+// 구매 버튼 문구 + 비활성 여부
+// 잠긴 상점 항목 → 승급 방법과 진행도
+function showGradeInfo(g) {
+  const bar = (v, max) => `<div class="gbar"><i style="width:${Math.min(100, v/max*100)}%"></i></div>`;
+  let steps = '';
+  for (let k = S.grade; k < g; k++) {
+    const th = GRADE_TH[k], okR = S.rep >= th.rep, okT = S.total >= th.total;
+    steps += `<div class="box"><b>${GRADES[k]} → ${GRADES[k+1]}</b>
+      <div class="grow">⭐ 평판 <b>${repStars(S.rep)}</b> / ${repStars(th.rep)} ${okR ? '✅' : ''}</div>${bar(S.rep, th.rep)}
+      <div class="grow">🐾 누적 치료 환자 <b>${S.total}</b> / ${th.total}명 ${okT ? '✅' : ''}</div>${bar(S.total, th.total)}</div>`;
+  }
+  const opens = [
+    ...DEPT_ORDER.filter(d => DEPTS[d].grade === g).map(d => DEPTS[d].icon + ' ' + DEPTS[d].name),
+    ...Object.keys(BUY_ROOMS).filter(r => BUY_ROOMS[r].grade === g).map(r => ROOMS[r].icon + ' ' + ROOMS[r].name),
+    ...Object.keys(DECOS).filter(d => DECOS[d].grade === g).map(d => DECOS[d].icon + ' ' + DECOS[d].name),
+  ];
+  openModal(`<h2>🏥 ${GRADES[g]} 승급 방법</h2>
+    <p class="sub">두 조건을 모두 채우면, 하루 결산 후 다음 날로 넘어갈 때 자동으로 승급해요!</p>
+    ${steps}
+    <div class="box"><b>⭐ 평판 올리는 법</b><br>
+      · 환자를 수납까지 잘 마치기 (VIP는 더 많이!)<br>
+      · 🚑 응급 환자 살리기 · 🕶️ 진상 환자 만족시키기<br>
+      · 🎯 오늘의 목표 달성 · 📰 기자 방문 날 만족도 높이기<br>
+      <small>💢 화난 환자가 생기면 평판이 떨어져요</small></div>
+    <div class="box"><b>🎁 ${GRADES[g]}이 되면 열려요</b><br>${opens.join(' · ')}<br><small>병원 맵도 넓어져요 🏗️</small></div>
+    <div class="brow"><button class="btn pri" data-act="shop:${G.shopTab || 'dept'}">← 상점으로</button></div>`);
+}
+function priceState(own, ownLab, grade, price, blocked) {
+  if (own) return { lab:ownLab, dis:true };
+  if (S.grade < grade) return { lab:`🔒 ${GRADES[grade]} 승급 방법 보기`, dis:false, act:`grade:${grade}`, lock:true };
+  if (blocked) return { lab:blocked, dis:true };
+  return { lab:coin(price), dis:S.money < price };
+}
+function hireCheck(c) {
+  const fee = c.wage*2;
+  if (c.role === 'doctor') return { ok:S.money >= fee, label:`${doctorOf(c.dept) ? '🔄 교체' : '💌 고용'} ${coin(fee)}` };
+  if (S.staff.filter(s => s.role === c.role).length >= capOf(c.role)) return { ok:false, label:'자리가 꽉 찼어요' };
+  return { ok:S.money >= fee, label:`💌 고용 ${coin(fee)}` };
+}
+function staffCard(s, i, cand) {
+  const h = cand ? hireCheck(s) : null;
+  const btn = cand ? `<button class="sbuy" data-act="buy:hire:${i}" ${h.ok ? '' : 'disabled'}>${h.label}</button>`
+    : s.role === 'doctor' ? '<button class="sbuy ghost" disabled>🩺 진료과 담당</button>'
+    : `<button class="sbuy ghost" data-act="buy:fire:${s.id}">👋 보내기</button>`;
+  return `<div class="sitem t-${ROLE_TONE[s.role]}${cand && !h.ok ? ' dim' : ''}">
+    <span class="stag">${cand ? ROLE[s.role].n : 'Lv.' + s.lvl}</span>
+    <div class="sicon">${s.animal}<i class="rb">${ROLE[s.role].b}</i></div>
+    <div class="sname">${staffName(s)}</div>
+    <div class="sdesc">${s.dept ? `${DEPTS[s.dept].icon} ${DEPTS[s.dept].name} 담당` : ROLE[s.role].desc}</div>
+    <div class="stats"><div>⚡ 속도 ${dots(s.spd, 'spd')}</div><div>😊 친절 ${dots(s.kind, 'kind')}</div></div>
+    <div class="wage">일급 <b>💰${s.wage}</b></div>${btn}
+  </div>`;
+}
+function showShop(tab) {
+  G.shopTab = tab = tab || G.shopTab || 'dept';
+  const T = [['dept','🩺','진료과'],['room','🏠','방·설비'],['deco','🪴','인테리어'],['staff','👩‍⚕️','직원']];
+  let body = '';
+  if (tab === 'dept') {
+    body = '<div class="sgrid">' + DEPT_ORDER.slice(1).map(id => {
+      const d = DEPTS[id], ps = priceState(S.depts[id], '오픈 완료', d.grade, d.price, !prevOwned(id) && '앞 진료과부터 열어요');
+      return itemHTML({ icon:d.icon, name:d.name, tone:'sky', tag:`진료비 💰${d.fee}`, key:`dept:${id}`, own:S.depts[id], ...ps,
+        desc:`<span class="symrow">${d.syms.map(s => `<em>${s[0]} ${s[2]}</em>`).join('')}</span>${id === 'obgy' ? '🛏️ 입원 환자가 많아요<br>' : ''}신입 의사 선생님이 함께 와요 🐾` });
+    }).join('') + '</div><div class="stip">💡 진료과를 열면 그 증상의 환자들이 찾아와요. 날이 갈수록 증상 종류도 늘어나요!</div>';
+  } else if (tab === 'room') {
+    const tones = { exam:'lav', inj:'sky', rest:'peach' };
+    body = '<div class="ssec">🚪 새 방 짓기</div><div class="sgrid">' + Object.keys(BUY_ROOMS).map(id => {
+      const r = BUY_ROOMS[id], ps = priceState(S.rooms[id], '완성!', r.grade, r.price);
+      return itemHTML({ icon:ROOMS[id].icon, name:ROOMS[id].name, tone:tones[id], desc:r.desc, key:`room:${id}`, own:S.rooms[id], ...ps });
+    }).join('') + '</div><div class="ssec">🔧 업그레이드 <small>각 3단계</small></div><div class="sgrid">' + Object.keys(UPS).map(id => {
+      const u = UPS[id], lv = S.up[id], max = lv >= 3;
+      return itemHTML({ icon:u.icon, name:u.name, tone:'mint', tag:`${'★'.repeat(lv)}${'☆'.repeat(3-lv)}`, key:`up:${id}`, own:max,
+        desc: max ? `${u.desc(lv)}<br>최고 단계예요! ✨` : `지금: ${u.desc(lv)}<br>다음: <b>${u.desc(lv+1)}</b>`,
+        lab: max ? 'MAX ✨' : `⬆️ ${coin(u.prices[lv])}`, dis: max || S.money < u.prices[lv] });
+    }).join('') + '</div>';
+  } else if (tab === 'deco') {
+    body = '<div class="sgrid">' + Object.keys(DECOS).map(id => {
+      const d = DECOS[id], ps = priceState(S.deco[id], '설치 완료', d.grade, d.price);
+      return itemHTML({ icon:d.icon, name:d.name, tone:'peach', tag:`하트 -${Math.round(d.eff*100)}%`, key:`deco:${id}`, own:S.deco[id], ...ps,
+        desc:'대기실이 아늑해져서<br>환자들이 덜 지쳐요 💗' });
+    }).join('') + '</div>';
+  } else {
+    body = `<div class="ssec">🏥 우리 병원 식구들 <small>일급은 매일 결산 때 나가요</small></div>
+      <div class="sgrid">${S.staff.map(s => staffCard(s, 0, false)).join('')}</div>
+      <div class="ssec">💌 오늘의 지원자 <small>계약금 = 일급 ×2</small></div>
+      ${S.cands.length ? `<div class="sgrid">${S.cands.map((c, i) => staffCard(c, i, true)).join('')}</div>` : '<div class="stip">🌙 오늘 지원자는 모두 만났어요. 내일 새 지원자가 와요!</div>'}
+      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 1명<br>😊 친절이 높을수록 환자 하트가 천천히 줄고, 일할수록 레벨 업해요!</div>`;
+  }
+  openModal(`<div class="shop-head"><div class="awning"></div>
+      <div class="shop-title">🛒 말랑 상점</div>
+      <div class="wallet">💰 <b>${fmtN(S.money)}</b></div></div>
+    <div class="tabs">${T.map(([k, ic, n]) => `<button class="tab${k === tab ? ' on' : ''}" data-act="shop:${k}"><span>${ic}</span>${n}</button>`).join('')}</div>
+    <div class="shop-body">${body}</div>
+    <div class="shop-foot"><button class="btn pri big" data-act="prep">← 영업 준비로</button></div>`, 'shop');
+}
+function buy(key) {
+  const [kind, id] = key.split(':'); let msg = '';
+  if (kind === 'dept') {
+    const d = DEPTS[id];
+    if (S.depts[id] || S.grade < d.grade || !prevOwned(id) || S.money < d.price) return;
+    S.money -= d.price; S.depts[id] = true;
+    const doc = mkStaff('doctor', {dept:id, spd:2, kind:rnd(1,2)}); S.staff.push(doc);
+    msg = `${d.icon} ${d.name} 오픈! ${jo(staffName(doc),'이','가')} 왔어요`;
+  } else if (kind === 'room') {
+    const r = BUY_ROOMS[id];
+    if (S.rooms[id] || S.grade < r.grade || S.money < r.price) return;
+    S.money -= r.price; S.rooms[id] = true; msg = `${ROOMS[id].icon} ${ROOMS[id].name} 완성!`;
+  } else if (kind === 'up') {
+    const u = UPS[id], lv = S.up[id];
+    if (lv >= 3 || S.money < u.prices[lv]) return;
+    S.money -= u.prices[lv]; S.up[id]++; msg = `${u.icon} ${u.name} 업그레이드! ${'★'.repeat(S.up[id])}`;
+  } else if (kind === 'deco') {
+    const d = DECOS[id];
+    if (S.deco[id] || S.grade < d.grade || S.money < d.price) return;
+    S.money -= d.price; S.deco[id] = true; msg = `${d.icon} ${d.name} 설치! 대기실이 아늑해졌어요`;
+  } else if (kind === 'hire') {
+    const c = S.cands[+id]; if (!c || !hireCheck(c).ok) return;
+    S.money -= c.wage*2;
+    if (c.role === 'doctor') S.staff = S.staff.filter(s => !(s.role === 'doctor' && s.dept === c.dept));
+    S.staff.push(c); S.cands.splice(+id, 1); msg = `${c.animal} ${staffName(c)} 입사! 잘 부탁해요 💕`;
+  } else if (kind === 'fire') {
+    const s = S.staff.find(x => x.id === +id); if (!s || s.role === 'doctor') return;
+    S.staff = S.staff.filter(x => x !== s); msg = `${s.animal} ${jo(staffName(s),'과','와')} 작별했어요 👋`;
+  }
+  SFX.buy(); toast(msg); save(); buildMap(); applyLayout(); updateHUD(); showShop(G.shopTab);
+}
+
+/* ===================== 안내서 / 메뉴 ===================== */
+function showGuide() {
+  if (G.mode === 'play') G.modal = true;
+  const rows = DEPT_ORDER.map(d => `${DEPTS[d].icon} <b>${DEPTS[d].name}</b>${S.depts[d] ? '' : ' 🔒'} : ${DEPTS[d].syms.map(s => `${s[0]} ${s[2]}`).join(', ')}`).join('<br>');
+  openModal(`<h2>📖 말랑병원 안내서</h2>
+    <div class="box"><b>증상 → 진료과</b><br>${rows}</div>
+    <div class="box"><b>환자 표시</b><br>
+      <span class="dot r"></span> 급함: 진료비 2배, 하트가 빨리 줄어요<br><span class="dot y"></span> 보통 · <span class="dot g"></span> 가벼움<br>
+      👑 VIP: 팁이 두둑하지만 인내심이 짧아요<br>
+      ❓ 원인 불명: 🩻 검사실에서 증상을 알아내거나, 아무 과에 보내서 50% 도박!<br>
+      ♥ 하트가 다 닳으면 💢 화내고 떠나요 (평판 ↓)</div>
+    <div class="box"><b>특별한 환자</b><br>
+      🚨 응급 환자: 접수 없이 바로 와요. 28초 안에 진료를 시작해야 해요! 진료 줄 맨 앞으로 들어가고 보상이 커요<br>
+      🩺 복합 증상: 말풍선에 증상이 두 개! 진료과를 하나씩 차례로 들러요 (순서는 자유)<br>
+      🕶️ 진상 환자: 가끔 소란을 피워 주변 하트를 깎고 새치기해요. 소란 중일 때 4번 톡톡 눌러 달래 주세요</div>
+    <div class="box"><b>진료 후</b><br>💊 약국 · 💉 주사실 → 💰 수납<br>🛏️ 입원실: 하루가 끝나면 퇴원하며 큰 돈을 내요</div>
+    <div class="box"><b>조작</b><br>톡: 접수 · 환자 선택 · 수납 / 끌기: 진료실 안내<br>환자 톡 → 방 톡으로도 안내돼요 · 쓰레기 🧻 톡: 청소<br>스페이스: 일시정지 · 1/2/4: 배속</div>
+    <div class="brow"><button class="btn pri" data-act="guideClose">알겠어요!</button></div>`);
+}
+function closeGuide() { if (G.mode === 'prep') showPrep(); else { closeModal(); G.modal = false; } }
+function showMenu() {
+  if (G.mode === 'play') G.modal = true;
+  openModal(`<h2>🏠 메인 화면으로 갈까요?</h2><p class="sub">${G.mode === 'play' ? '오늘 영업 기록은 저장되지 않아요.<br>(어제까지의 기록은 자동 저장되어 있어요 💾)' : '진행 상황은 자동 저장되어 있어요 💾'}</p>
+    <div class="brow"><button class="btn" data-act="menuNo">계속하기</button><button class="btn pri" data-act="menuYes">메인으로</button></div>`);
+}
+function showTitle() {
+  if (G) G.mode = 'menu';
+  closeModal(); hideCoach(); $('#pauseOv').classList.add('hidden');
+  $('#tCont').classList.toggle('hidden', !load());
+  $('#tSound').textContent = OPT.sound ? '🔊 효과음 켜짐' : '🔇 효과음 꺼짐';
+  $('#title').classList.remove('hidden');
+}
+function startGame(s) {
+  S = s; $('#title').classList.add('hidden');
+  mapEl.innerHTML = ''; $('#toasts').innerHTML = '';
+  prepDay();
+}
+function toggleSound() {
+  OPT.sound = !OPT.sound; saveOpt();
+  $('#bSound').textContent = OPT.sound ? '🔊' : '🔇';
+  $('#tSound').textContent = OPT.sound ? '🔊 효과음 켜짐' : '🔇 효과음 꺼짐';
+  SFX.tap();
+}
+function setSpeed(n) {
+  if (!G) return;
+  G.speed = n;
+  if (n > 0 && G.mode === 'play' && OPT.speed !== n) { OPT.speed = n; saveOpt(); }
+  document.querySelectorAll('.speed button').forEach(b => b.classList.toggle('on', +b.dataset.sp === n));
+  $('#pauseOv').classList.toggle('hidden', !(n === 0 && G.mode === 'play'));
+}
+
+/* ===================== 입력 ===================== */
+function act(a) {
+  const i = a.indexOf(':'), k = i < 0 ? a : a.slice(0, i), v = i < 0 ? '' : a.slice(i+1);
+  if (k !== 'buy') SFX.tap();
+  switch (k) {
+    case 'start': startDay(); break;
+    case 'shop': showShop(v || 'dept'); break;
+    case 'prep': showPrep(); break;
+    case 'buy': buy(v); break;
+    case 'grade': showGradeInfo(+v); break;
+    case 'guide': showGuide(); break;
+    case 'guideClose': closeGuide(); break;
+    case 'sound': toggleSound(); showPrep(); break;
+    case 'sumOk': nextDay(); break;
+    case 'promoOk': prepDay(); break;
+    case 'menuNo': closeModal(); G.modal = false; if (G.mode === 'prep') showPrep(); break;
+    case 'menuYes': showTitle(); break;
+    case 'newYes': closeModal(); try { localStorage.removeItem(SAVE_KEY); } catch(e) {} newState(); save(); startGame(S); break;
+    case 'newNo': closeModal(); break;
+    case 'endTut': endTut(); break;
+    case 'skipTut': endTut(); break;
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b && !b.disabled) act(b.dataset.act);
+});
+const canAct = () => G && G.mode === 'play' && !G.modal && G.speed > 0;
+function tapPatient(p) {
+  if (!canAct()) return;
+  bounce(p);
+  if (p.tantrum) calmKaren(p);
+  else if (p.stage === 'new') register(p);
+  else if (p.stage === 'pay') pay(p);
+  else if (['reg','queued','next'].includes(p.stage)) { if (G.sel === p) deselect(); else select(p); SFX.tap(); }
+  else if (p.stage === 'svc') say(p, '치료받는 중이에요~', 1200);
+  else if (p.stage === 'ward') say(p, '푹 쉬는 중 💤', 1200);
+}
+function tapRoom(id, c) {
+  bounceEl(c);
+  if (G.sel) { const p = G.sel; deselect(); sendTo(p, id); return; }
+  if (id === 'cash') { const p = G.patients.find(x => x.stage === 'pay'); if (p) pay(p); else SFX.tap(); return; }
+  if (isLocked(id) || id === 'more') { lockedInfo(id); return; }
+  SFX.tap();
+  if (DEPTS[id]) { const d = doctorOf(id); if (d) toast(staffInfo(d)); }
+  else if (id === 'pharm') { const ph = S.staff.find(s => s.role === 'pharm'); toast(ph ? staffInfo(ph) : '💊 약사가 없어서 원장님이 천천히 약을 지어요. 약사를 고용해 봐요!'); }
+  else if (id === 'ent') { const n = S.staff.filter(s => s.role === 'nurse'); toast(n.length ? n.map(staffInfo).join('<br>') : '📋 간호사를 고용하면 접수를 자동으로 해 줘요!'); }
+  else if (id === 'wait') { const j = S.staff.filter(s => s.role === 'janitor'); toast(j.length ? j.map(staffInfo).join('<br>') : '🧻 쓰레기를 톡! 하면 치울 수 있어요. 청소부가 있으면 자동!'); }
+}
+mapEl.addEventListener('click', e => {
+  if (e.target.closest('.pt')) return;
+  if (!canAct()) return;
+  const d = e.target.closest('.dirt'); if (d) { cleanDirt(d, false); return; }
+  const c = e.target.closest('.card'); if (!c) { deselect(); return; }
+  tapRoom(c.dataset.room, c);
+});
+// 드래그 앤 드롭 (마우스 + 터치)
+let drag = null;
+const cardAt = (x, y) => { const el = document.elementFromPoint(x, y); return el ? el.closest('#map .card') : null; };
+mapEl.addEventListener('pointerdown', e => {
+  const pe = e.target.closest('.pt'); if (!pe) return;
+  const p = G.patients.find(x => x.id === +pe.dataset.id); if (!p) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+  drag = { p, x0:e.clientX, y0:e.clientY, moved:false, ghost:null, hover:null, id:e.pointerId };
+});
+addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (!drag.moved) {
+    if (dx*dx + dy*dy < 64) return;
+    if (!canAct() || !['reg','queued','next'].includes(drag.p.stage)) return;
+    drag.moved = true;
+    const g = drag.p.el.cloneNode(true); g.classList.add('ghost'); g.classList.remove('sel', 'arrive');
+    g.style.transform = ''; g.style.transition = ''; document.body.appendChild(g); drag.ghost = g;
+    drag.p.el.classList.add('dragging'); markTargets(drag.p);
+  }
+  e.preventDefault();
+  drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
+  const c = cardAt(e.clientX, e.clientY);
+  if (c !== drag.hover) { if (drag.hover) drag.hover.classList.remove('hover'); drag.hover = c; if (c) c.classList.add('hover'); }
+}, { passive:false });
+function endDrag(d) {
+  if (d.ghost) d.ghost.remove();
+  if (d.hover) d.hover.classList.remove('hover');
+  d.p.el.classList.remove('dragging');
+  deselect();
+}
+addEventListener('pointerup', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (d.moved) { endDrag(d); const c = cardAt(e.clientX, e.clientY); if (c && d.p.stage !== 'gone' && canAct()) { bounceEl(c); sendTo(d.p, c.dataset.room); } }
+  else tapPatient(d.p);
+});
+addEventListener('pointercancel', () => { if (drag) { if (drag.moved) endDrag(drag); drag = null; } });
+
+document.querySelectorAll('.speed button').forEach(b => b.addEventListener('click', () => { if (G && G.mode === 'play') { setSpeed(+b.dataset.sp); SFX.tap(); } }));
+$('#pauseOv').addEventListener('click', () => setSpeed(1));
+$('#bSound').addEventListener('click', toggleSound);
+$('#bGuide').addEventListener('click', () => { if (G && (G.mode === 'play' || G.mode === 'prep')) { SFX.tap(); showGuide(); } });
+$('#bMenu').addEventListener('click', () => { if (G && G.mode !== 'menu') { SFX.tap(); showMenu(); } });
+$('#tCont').addEventListener('click', () => { const s = load(); if (!s) return; SFX.tap(); startGame(Object.assign(newState(), s)); });
+$('#tNew').addEventListener('click', () => {
+  SFX.tap();
+  if (load()) openModal(`<h2>✨ 새로 시작할까요?</h2><p class="sub">기존 병원 기록이 모두 지워져요.<br>정말 괜찮아요?</p><div class="brow"><button class="btn" data-act="newNo">아니요</button><button class="btn pri" data-act="newYes">새로 시작!</button></div>`);
+  else act('newYes');
+});
+$('#tSound').addEventListener('click', toggleSound);
+addEventListener('keydown', e => {
+  if (!G || G.mode !== 'play' || G.modal) return;
+  if (e.code === 'Space') { e.preventDefault(); setSpeed(G.speed === 0 ? 1 : 0); }
+  else if (e.key === '1') setSpeed(1);
+  else if (e.key === '2') setSpeed(2);
+  else if (e.key === '4') setSpeed(4);
+  else if (e.key === 'Escape') deselect();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && G && G.mode === 'play' && G.speed > 0 && !G.tut) setSpeed(0); });
+let rsT = 0;
+addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(applyLayout, 120); });
+
+/* ===================== 시작 ===================== */
+G = newG();
+$('#bSound').textContent = OPT.sound ? '🔊' : '🔇';
+showTitle();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
