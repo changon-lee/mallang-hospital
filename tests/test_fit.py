@@ -62,3 +62,34 @@ def test_small_phone_does_not_break(page_at):
     tick(page, 20)
     assert js(page, "G.mode") == 'play'
     assert page.js_errors == []
+
+
+# fitMap과 같은 판정: 장식(가구·잠금 안내·의사 배지)은 빼고, 대기열 환자는 포함
+FIT_PRED = """(() => { const st = document.createElement('style'); st.textContent = '#map .furn,#map .lk,#map .c-dept .staffs{display:none!important}'; document.head.appendChild(st);
+  const ok = [...document.querySelectorAll('#map .card')].every(c => {
+  if (c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1) return false;
+  const cb = c.querySelector('.cb');
+  return !cb || (cb.scrollHeight <= cb.clientHeight + 1 && cb.scrollWidth <= cb.clientWidth + 1); });
+  st.remove(); return ok; })()"""
+CLIPPED = """[...document.querySelectorAll('#map .pt')].filter(p => {
+  const c = p.closest('.card').getBoundingClientRect(), r = p.getBoundingClientRect();
+  return r.bottom > c.bottom + 2 || r.right > c.right + 2 || r.left < c.left - 2; }).length"""
+FILL_QUEUES = """for (let i=0;i<9;i++) spawn(true,{sym:'🤒'});
+  for (let i=0;i<8;i++){ const p=spawn(true,{sym:'🤒'}); p.stage='pay'; toCash(p); }
+  for (let i=0;i<8;i++){ const p=spawn(true,{sym:'🤒'}); register(p); p.done=true; p.dest='pharm'; p.stage='next'; sendTo(p,'pharm'); }"""
+
+
+@pytest.mark.parametrize("w,h", [(390, 744), (667, 375), (740, 360), (844, 350), (1440, 900)])
+@pytest.mark.parametrize("grade", [2, 3])
+def test_full_queues_never_clipped(page_at, w, h, grade):
+    page = page_at((w, h)); full_hospital(page, grade)
+    js(page, FILL_QUEUES); page.wait_for_timeout(1300)
+    assert js(page, CLIPPED) == 0
+    # 꽉 맞추기에 성공했으면 모든 방이 넘치지 않고, 못 맞추면 스크롤로 전부 보여야 함
+    assert js(page, FIT_PRED) or js(page, "document.querySelector('#mapWrap').scrollHeight > document.querySelector('#mapWrap').clientHeight")
+
+
+@pytest.mark.parametrize("w,h", [(667, 375), (740, 360)])
+def test_small_landscape_uses_wide_layout(page_at, w, h):
+    page = page_at((w, h)); boot(page)
+    assert js(page, "layoutMode()") == 'wide'

@@ -487,6 +487,8 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
 #map .cb{min-height:0;overflow:hidden}
 .queue{flex-wrap:nowrap;align-content:flex-start;align-items:flex-end;overflow:visible}
 .queue.pq{flex-wrap:nowrap}
+#mapWrap.scrollfit{overflow:auto}
+#mapWrap.scrollfit #map .card,#mapWrap.scrollfit #map .cb{overflow:visible}
 #map.measuring .queue > .pt,#map.measuring .furn,#map.measuring .lk,#map.measuring .c-dept .staffs{display:none}
 .room1{flex-wrap:wrap;align-content:center;gap:4px}
 /* 의자·환자 비율을 조금 납작하게, 진료과 의자는 3개가 한 줄에 들어가게 */
@@ -496,10 +498,10 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
 #map .rest-empty{font-size:.7rem;line-height:1.1}
 #map .lk{max-height:100%;overflow:hidden}
 #map{--qpad:30px}
-#map .queue{min-height:calc(var(--pz)*2.1)}
-#map .has-counter .queue{padding-top:var(--qpad);min-height:calc(var(--pz)*2.1 + var(--qpad))}
-#map .queue.pq{min-height:calc(var(--pz)*2.1)}
-@media (max-width:600px){ #map{--qpad:18px} #map .counter{height:16px;font-size:10px} }
+#map .queue{min-height:calc(var(--pz)*2.1 + 3px)}
+#map .has-counter .queue{padding-top:var(--qpad);min-height:calc(var(--pz)*2.1 + var(--qpad) + 3px)}
+#map .queue.pq{min-height:calc(var(--pz)*2.1 + 3px)}
+@media (max-width:600px){ #map{--qpad:12px} #map .counter{height:14px;font-size:9px;top:0} }
 .seats{width:100%}
 #map .c-rest .cb{gap:2px;flex-wrap:wrap;align-content:center}
 .sofa{font-size:calc(var(--pz)*1.05)}
@@ -903,7 +905,8 @@ function bounceEl(el) { el.classList.remove('boing'); void el.offsetWidth; el.cl
 const cardEl = id => mapEl.querySelector(`.card[data-room="${id}"]`);
 
 /* ===================== 맵 ===================== */
-const layoutMode = () => (innerWidth >= 760 && innerWidth > innerHeight*.95) ? 'wide' : 'narrow';
+// 가로로 긴 화면(가로 폰 포함)은 넓은 배치, 세로 화면은 좁은 배치
+const layoutMode = () => innerWidth > innerHeight*.95 ? 'wide' : 'narrow';
 function areaNames() {
   const out = [];
   LAYOUT.wide[S.grade].join(' ').split(/\s+/).forEach(n => { if (n !== '.' && !out.includes(n)) out.push(n); });
@@ -914,6 +917,7 @@ function applyLayout() {
   const mode = layoutMode(), tpl = LAYOUT[mode][S.grade], cols = tpl[0].split(' ').length;
   mapEl.style.gridTemplateAreas = tpl.map(r => `"${r}"`).join(' ');
   mapEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  mapEl.dataset.rows = tpl.length;
   mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(0,1fr))`;
   mapEl.style.maxWidth = mode==='wide' ? ['1000px','1240px','1440px','1600px'][S.grade] : '';
   // 문 위치: 아래에 복도가 있으면 아래쪽, 맨 아랫줄 방이면 위쪽
@@ -929,7 +933,10 @@ function applyLayout() {
 const PZ_MAX = 34, PZ_MIN = 16;
 function fitMap() {
   if (!S || !mapEl.children.length) return;
-  const wrap = $('#mapWrap'), cs = getComputedStyle(wrap);
+  const wrap = $('#mapWrap');
+  wrap.classList.remove('scrollfit');
+  mapEl.style.gridTemplateRows = `repeat(${mapEl.dataset.rows || 1},minmax(0,1fr))`;
+  const cs = getComputedStyle(wrap);
   const h = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   if (h <= 0) return;
   mapEl.style.height = h + 'px';
@@ -937,12 +944,17 @@ function fitMap() {
   const fits = () => cards.every(c => {
     if (c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1) return false;
     const cb = c.querySelector('.cb');
-    return !cb || (cb.scrollHeight <= cb.clientHeight + 1 && cb.scrollWidth <= cb.clientWidth + 1);
+    return !cb || (cb.scrollHeight <= cb.clientHeight && cb.scrollWidth <= cb.clientWidth);
   });
   mapEl.classList.add('measuring');
   let pz = PZ_MAX;
   for (; pz > PZ_MIN; pz--) { mapEl.style.setProperty('--pz', pz + 'px'); if (fits()) break; }
   mapEl.style.setProperty('--pz', pz + 'px');
+  // 가장 작게 해도 안 들어가는 화면이면 잘리지 않게 스크롤을 허용
+  if (!fits()) {
+    wrap.classList.add('scrollfit'); mapEl.style.height = '';
+    mapEl.style.gridTemplateRows = `repeat(${mapEl.dataset.rows || 1},auto)`;
+  }
   mapEl.classList.remove('measuring');
   mapEl.querySelectorAll('.queue').forEach(overlapQueue);
 }
@@ -952,11 +964,13 @@ function overlapQueue(q) {
   const kids = [...q.children].filter(e => e.classList.contains('pt'));
   kids.forEach(e => e.style.marginRight = '');
   if (kids.length < 2) return;
-  const cs = getComputedStyle(q), avail = q.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  // 맨 끝 환자의 말풍선이 몸보다 넓을 수 있어 조금 여유를 둠
+  const cs = getComputedStyle(q), avail = q.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - (q.firstElementChild ? q.firstElementChild.offsetWidth * .25 : 0);
   const w = kids[0].offsetWidth, gap = parseFloat(cs.columnGap) || 0;
   if (kids.length * (w + gap) <= avail) return;
   const m = (avail - w) / (kids.length - 1) - w - gap;
   kids.slice(0, -1).forEach(e => e.style.marginRight = m + 'px');
+  kids[kids.length - 1].style.marginRight = '0px';
 }
 const F = (cls, html='') => `<div class="furn ${cls}">${html}</div>`;
 const hdr = (icon, name, extra='') => `<div class="ch"><span>${icon}</span><b>${name}</b>${extra}</div>`;
