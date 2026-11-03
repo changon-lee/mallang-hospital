@@ -661,7 +661,15 @@ function mkStaff(role, o={}) {
   s.wage = wageOf(s);
   return s;
 }
-const staffName = s => `${ANAME[s.animal]} ${ROLE[s.role].t}`;
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const staffNameRaw = s => s.name || `${ANAME[s.animal]} ${ROLE[s.role].t}`;
+const staffName = s => esc(staffNameRaw(s));
+const staffNameJo = (s, a, b) => esc(jo(staffNameRaw(s), a, b));
+function setStaffName(id, input) {
+  const s = S.staff.find(x => x.id === id); if (!s) return;
+  const v = Array.from(String(input || '').trim()).slice(0, 10).join('').trim();
+  s.name = v || null; save();
+}
 const doctorOf = d => S.staff.find(s => s.role==='doctor' && s.dept===d);
 const doctorReady = d => { const s = doctorOf(d); return !!s && !(s.rest > 0); };
 const pharmacist = () => S.staff.find(s => s.role==='pharm' && !(s.rest > 0));
@@ -1305,7 +1313,7 @@ function setTut(n) {
   switch (n) {
     case 1: coach('원장님, 첫 환자가 왔어요! 🐰<br>입구의 환자를 <b>톡</b> 눌러서 <b>접수</b>해 주세요 👆', skip); hl('ent'); break;
     case 2: coach('말풍선에 <b>🤒 열</b>이 보이죠? 열은 <b>🩺 내과</b>예요!<br>환자를 <b>끌어서</b> 내과에 놓거나, <b>환자 톡 → 내과 톡</b>!<br><small>진료과 카드 오른쪽 위에 받는 증상이 적혀 있어요</small>', skip); hl('int'); break;
-    case 3: coach(`${jo(doc ? staffName(doc) : '의사 선생님','이','가')} 진료 중이에요… 🩺<br><small>진료받는 동안엔 하트가 줄지 않아요</small>`); break;
+    case 3: coach(`${doc ? staffNameJo(doc,'이','가') : '의사 선생님이'} 진료 중이에요… 🩺<br><small>진료받는 동안엔 하트가 줄지 않아요</small>`); break;
     case 4: coach('진료 끝! 환자 머리 위에 <b>💊</b>가 떴어요.<br><b>💊 약국</b>으로 안내해 주세요!<br><small>💉는 주사실, 🛏️는 입원실이에요. 틀리면 하트가 줄어요</small>', skip); hl('pharm'); break;
     case 5: coach('약 받는 중이에요 💊 조금만 기다려요~'); break;
     case 6: coach('이제 <b>💰 수납</b> 창구에서 환자를 <b>톡!</b><br><small>빨리 받을수록 팁이 붙고, 실수 없이 이어 가면 콤보 보너스! 🔥</small>', skip); hl('cash'); break;
@@ -1617,7 +1625,7 @@ function buy(key) {
     if (S.depts[id] || S.grade < d.grade || !prevOwned(id) || S.money < d.price) return;
     S.money -= d.price; S.depts[id] = true;
     const doc = mkStaff('doctor', {dept:id, spd:2, kind:rnd(1,2)}); S.staff.push(doc);
-    msg = `${d.icon} ${d.name} 오픈! ${jo(staffName(doc),'이','가')} 왔어요`;
+    msg = `${d.icon} ${d.name} 오픈! ${staffNameJo(doc,'이','가')} 왔어요`;
   } else if (kind === 'room') {
     const r = BUY_ROOMS[id];
     if (S.rooms[id] || S.grade < r.grade || S.money < r.price) return;
@@ -1637,7 +1645,7 @@ function buy(key) {
     S.staff.push(c); S.cands.splice(+id, 1); msg = `${c.animal} ${staffName(c)} 입사! 잘 부탁해요 💕`;
   } else if (kind === 'fire') {
     const s = S.staff.find(x => x.id === +id); if (!s || s.role === 'doctor') return;
-    S.staff = S.staff.filter(x => x !== s); msg = `${s.animal} ${jo(staffName(s),'과','와')} 작별했어요 👋`;
+    S.staff = S.staff.filter(x => x !== s); msg = `${s.animal} ${staffNameJo(s,'과','와')} 작별했어요 👋`;
   }
   SFX.buy(); toast(msg); save(); buildMap(); applyLayout(); updateHUD(); showShop(G.shopTab);
 }
