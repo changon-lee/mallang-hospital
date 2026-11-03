@@ -138,7 +138,10 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .pt.mid .pt-hp i{background:#ffb86b}
 .pt.low .pt-hp i{background:#ff5d73}
 .pt.low .ani{animation:shiver .25s infinite}
-.pt-say{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#5b4a60;color:#fff;font-size:11px;padding:3px 7px;border-radius:9px;white-space:nowrap;z-index:5;pointer-events:none;opacity:0;transition:opacity .2s}
+.pt-bw{position:relative}
+.pt-bub{z-index:7}
+.pt-say{position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);background:#5b4a60d9;color:#fff;font-size:10px;padding:2px 6px;border-radius:9px;white-space:nowrap;z-index:6;pointer-events:none;opacity:0;transition:opacity .2s}
+.pt-say.side{bottom:auto;top:0;left:calc(100% + 4px);transform:none}
 .pt-say.on{opacity:1}
 .pt-body.boing{animation:boing .35s}
 .pt.shake .pt-body{animation:shakeX .4s}
@@ -829,8 +832,11 @@ function floatAt(el, text, cls='') {
   f.style.left = (r.left + r.width/2) + 'px'; f.style.top = (r.top + 6) + 'px';
   document.body.appendChild(f); setTimeout(() => f.remove(), 1200);
 }
-function say(p, text, ms=1900) {
-  p.sayEl.textContent = text; p.sayEl.classList.add('on');
+function say(p, text, ms=1500) {
+  const el = p.sayEl; el.textContent = text; el.classList.remove('side'); el.classList.add('on');
+  // 방 위쪽에서 잘리면 환자 옆에 띄움
+  const card = p.el.closest('.card');
+  if (card && el.getBoundingClientRect().top < card.getBoundingClientRect().top) el.classList.add('side');
   clearTimeout(p._sayT); p._sayT = setTimeout(() => p.sayEl.classList.remove('on'), ms);
 }
 function bounce(p) { const b = p.bodyEl; b.classList.remove('boing'); void b.offsetWidth; b.classList.add('boing'); }
@@ -1008,7 +1014,7 @@ function spawn(force=false, o={}) {
     extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
   const el = document.createElement('div');
   el.className = 'pt arrive' + (emerg ? ' emerg' : '') + (karen ? ' karen' : ''); el.dataset.id = p.id;
-  el.innerHTML = `<div class="pt-say"></div><div class="pt-in"><div class="pt-bub"></div><div class="pt-body"><span class="ani">${p.animal}</span><span class="pt-urg u${p.urg}"></span>${vip?'<span class="crown">👑</span>':''}</div><div class="pt-hp"><b>♥</b><span><i></i></span></div></div>`;
+  el.innerHTML = `<div class="pt-in"><div class="pt-bw"><div class="pt-say"></div><div class="pt-bub"></div></div><div class="pt-body"><span class="ani">${p.animal}</span><span class="pt-urg u${p.urg}"></span>${vip?'<span class="crown">👑</span>':''}</div><div class="pt-hp"><b>♥</b><span><i></i></span></div></div>`;
   p.el = el; p.sayEl = el.querySelector('.pt-say'); p.bubEl = el.querySelector('.pt-bub'); p.bodyEl = el.querySelector('.pt-body'); p.hpEl = el.querySelector('.pt-hp i');
   updBub(p);
   G.patients.push(p);
