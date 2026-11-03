@@ -479,6 +479,65 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
   #map .ch{left:10px}
   #map .c-ent::before,#map .c-wait::before,#map .c-cash::before{inset:0}
 }
+
+/* ===== 화면 맞춤: 맵은 항상 남은 화면 한 장, 크기는 fitMap()이 --pz로 조절 ===== */
+#mapWrap{overflow:hidden}
+#map{min-height:0;box-sizing:border-box}
+#map .card{overflow:hidden;min-height:0}
+#map .cb{min-height:0;overflow:hidden}
+.queue{flex-wrap:nowrap;align-content:flex-start;align-items:flex-end;overflow:visible}
+.queue.pq{flex-wrap:nowrap}
+#map.measuring .queue > .pt,#map.measuring .furn,#map.measuring .lk{display:none}
+.room1{flex-wrap:wrap;align-content:center;gap:4px}
+/* 의자·환자 비율을 조금 납작하게, 진료과 의자는 3개가 한 줄에 들어가게 */
+.slot{width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.3);padding-bottom:7px}
+.c-pharm .slot{width:calc(var(--pz)*1.5);height:calc(var(--pz)*2.3)}
+.pslots{gap:3px}
+#map .rest-empty{font-size:.7rem;line-height:1.1}
+#map .lk{max-height:100%;overflow:hidden}
+#map{--qpad:30px}
+#map .queue{min-height:calc(var(--pz)*2.1)}
+#map .has-counter .queue{padding-top:var(--qpad);min-height:calc(var(--pz)*2.1 + var(--qpad))}
+#map .queue.pq{min-height:calc(var(--pz)*2.1)}
+@media (max-width:600px){ #map{--qpad:18px} #map .counter{height:16px;font-size:10px} }
+.seats{width:100%}
+#map .c-rest .cb{gap:2px;flex-wrap:wrap;align-content:center}
+.sofa{font-size:calc(var(--pz)*1.05)}
+.bed{width:calc(var(--pz)*1.8);height:calc(var(--pz)*2.2)}
+.pt{height:calc(var(--pz)*2.05)}
+.c-dept .staffs{position:absolute;left:1px;bottom:0;z-index:5;gap:0}
+.c-dept .sb{font-size:calc(var(--pz)*.62)}
+#map .card{padding:16px 8px 5px}
+#map .ch{font-size:clamp(10px,1.2vmin + 4px,12px)}
+@media (max-width:760px), (max-height:500px){
+  #map .lk{font-size:.68rem;line-height:1.25}
+  #map .lk .big{font-size:1.1rem}
+  #map .card{padding:14px 3px 3px}
+  #map{border-width:4px;padding:3px}
+  #mapWrap{padding:3px 4px 6px}
+  .room1{gap:2px}
+  #hud{padding:3px 6px;gap:3px 5px}
+  #hud .logo > span:not(.chip),#hSave,#hud .chip[title="목표 별"]{display:none}
+  .hud-r{flex-wrap:nowrap;gap:3px}
+  .ibtn{width:28px;height:26px;font-size:.8rem}
+  .speed button{padding:1px 6px;font-size:.75rem}
+  .chip{padding:1px 6px;font-size:.74rem}
+  .hud-mid{min-width:0;flex:1 1 120px}
+  #infobar{position:relative;flex-wrap:nowrap;min-height:0;padding:0}
+  #goalbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;min-height:28px;padding:2px 6px;font-size:.72rem}
+  #goalbar::-webkit-scrollbar{display:none}
+  .gchip{padding:1px 8px}
+  #toasts{position:absolute;left:6px;right:6px;top:0;bottom:0;height:auto;margin:0;z-index:40;min-width:0}
+  #toasts .toast{left:auto;right:0;max-width:100%}
+}
+@media (max-height:500px){
+  .slot,.c-pharm .slot{height:calc(var(--pz)*2.1);padding-bottom:5px}
+  .pt{height:calc(var(--pz)*1.95)}
+  .seat{height:calc(var(--pz)*2)}
+  #map .has-shelf{padding-top:12px}
+  #map .counter,#map .shelf{height:14px;font-size:10px}
+  #map{--qpad:16px}
+}
 </style>
 </head>
 <body>
@@ -583,12 +642,12 @@ const LAYOUT = {
     ['ent wait wait cash','int ort exam pharm','inj ward ward more'],
     ['ent wait wait cash rest','int ort eye den pharm','exam inj ward ward more'],
     ['ent wait wait wait cash rest','int ort eye den skin pharm','exam obgy inj ward ward ward'],
-    ['ent wait wait wait cash rest','int ort eye den skin pharm','obgy ear neu exam inj pharm','surg ward ward ward ward pharm'],
+    ['ent wait wait cash int ort surg','rest wait wait eye den skin ward','pharm obgy ear neu exam inj ward'],
   ],
   narrow: [
-    ['ent wait wait','ent wait wait','int ort exam','inj pharm cash','ward ward more'],
-    ['ent wait wait','ent wait wait','int ort eye','den exam inj','pharm cash rest','ward ward more'],
-    ['ent wait wait','ent wait wait','int ort eye','den skin obgy','exam inj pharm','cash ward ward','rest ward ward'],
+    ['ent wait wait','cash wait wait','int ort pharm','exam inj pharm','ward ward more'],
+    ['ent wait wait','cash wait wait','int ort eye','den exam pharm','inj rest pharm','ward ward more'],
+    ['ent wait wait','cash wait wait','int ort eye','den skin obgy','exam inj pharm','ward ward pharm','ward ward rest'],
     ['ent wait wait','cash wait wait','int ort eye','den skin obgy','ear neu exam','inj surg pharm','ward ward pharm','ward ward rest'],
   ],
 };
@@ -855,7 +914,7 @@ function applyLayout() {
   const mode = layoutMode(), tpl = LAYOUT[mode][S.grade], cols = tpl[0].split(' ').length;
   mapEl.style.gridTemplateAreas = tpl.map(r => `"${r}"`).join(' ');
   mapEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
-  mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(${mode==='wide'?120:104}px,1fr))`;
+  mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(0,1fr))`;
   mapEl.style.maxWidth = mode==='wide' ? ['1000px','1240px','1440px','1600px'][S.grade] : '';
   // 문 위치: 아래에 복도가 있으면 아래쪽, 맨 아랫줄 방이면 위쪽
   const rows = tpl.map(r => r.split(' '));
@@ -864,6 +923,40 @@ function applyLayout() {
     rows.forEach((r, i) => { if (r.includes(c.dataset.room)) last = i; });
     c.dataset.door = last < rows.length - 1 ? 'b' : 't';
   });
+  fitMap();
+}
+// 맵 높이를 남은 화면에 고정하고, 모든 방 내용이 들어가는 가장 큰 --pz를 찾음
+const PZ_MAX = 34, PZ_MIN = 16;
+function fitMap() {
+  if (!S || !mapEl.children.length) return;
+  const wrap = $('#mapWrap'), cs = getComputedStyle(wrap);
+  const h = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  if (h <= 0) return;
+  mapEl.style.height = h + 'px';
+  const cards = [...mapEl.querySelectorAll('.card')];
+  const fits = () => cards.every(c => {
+    if (c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1) return false;
+    const cb = c.querySelector('.cb');
+    return !cb || (cb.scrollHeight <= cb.clientHeight + 1 && cb.scrollWidth <= cb.clientWidth + 1);
+  });
+  mapEl.classList.add('measuring');
+  let pz = PZ_MAX;
+  for (; pz > PZ_MIN; pz--) { mapEl.style.setProperty('--pz', pz + 'px'); if (fits()) break; }
+  mapEl.style.setProperty('--pz', pz + 'px');
+  mapEl.classList.remove('measuring');
+  mapEl.querySelectorAll('.queue').forEach(overlapQueue);
+}
+// 대기열이 넘치면 줄바꿈 대신 겹쳐 세움
+function overlapQueue(q) {
+  if (!q) return;
+  const kids = [...q.children].filter(e => e.classList.contains('pt'));
+  kids.forEach(e => e.style.marginRight = '');
+  if (kids.length < 2) return;
+  const cs = getComputedStyle(q), avail = q.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const w = kids[0].offsetWidth, gap = parseFloat(cs.columnGap) || 0;
+  if (kids.length * (w + gap) <= avail) return;
+  const m = (avail - w) / (kids.length - 1) - w - gap;
+  kids.slice(0, -1).forEach(e => e.style.marginRight = m + 'px');
 }
 const F = (cls, html='') => `<div class="furn ${cls}">${html}</div>`;
 const hdr = (icon, name, extra='') => `<div class="ch"><span>${icon}</span><b>${name}</b>${extra}</div>`;
@@ -936,8 +1029,10 @@ function renderStaff() {
 /* ===================== 환자 위치 ===================== */
 // FLIP: 위치를 옮긴 뒤 원래 자리에서 미끄러지듯 걸어가게 함
 function place(p, container) {
-  const el = p.el, first = el.isConnected ? el.getBoundingClientRect() : null;
+  const el = p.el, first = el.isConnected ? el.getBoundingClientRect() : null, from = el.parentNode;
   container.appendChild(el);
+  if (from && from.classList && from.classList.contains('queue')) overlapQueue(from);
+  if (container.classList.contains('queue')) overlapQueue(container);
   if (!first) return;
   const last = el.getBoundingClientRect(), dx = first.left - last.left, dy = first.top - last.top;
   if (Math.abs(dx) + Math.abs(dy) < 1) return;
@@ -966,7 +1061,7 @@ function toCash(p) { leave(p); p.loc = 'cash'; p.cashT = G.t; place(p, G.cashQ);
 function removeP(p, cls) {
   if (G.sel === p) deselect();
   leave(p); p.stage = 'gone'; p.el.classList.add(cls);
-  const el = p.el; setTimeout(() => el.remove(), 900);
+  const el = p.el; setTimeout(() => { const q = el.parentNode; el.remove(); if (q && q.classList && q.classList.contains('queue')) overlapQueue(q); }, 900);
   G.patients = G.patients.filter(x => x !== p);
 }
 
@@ -1019,6 +1114,7 @@ function spawn(force=false, o={}) {
   updBub(p);
   G.patients.push(p);
   if (emerg) G.entQ.prepend(el); else G.entQ.appendChild(el);
+  overlapQueue(G.entQ);
   setTimeout(() => el.classList.remove('arrive'), 600);
   if (vip && !G.tut) { toast('👑 VIP 환자 등장! 팁이 두둑하지만 성격이 급해요', 'vip'); SFX.alert(); }
   if (karen && !G.karenSeen) { G.karenSeen = true; toast('🕶️ 진상 환자가 왔어요… 소란을 피우면 톡톡 눌러서 달래 주세요!', 'ev'); }
@@ -1927,6 +2023,7 @@ addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => { if (document.hidden && G && G.mode === 'play' && G.speed > 0 && !G.tut) setSpeed(0); });
 let rsT = 0;
 addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(applyLayout, 120); });
+if (window.ResizeObserver) { let roF = 0; new ResizeObserver(() => { cancelAnimationFrame(roF); roF = requestAnimationFrame(fitMap); }).observe($('#mapWrap')); }
 
 /* ===================== 시작 ===================== */
 G = newG();
