@@ -515,7 +515,7 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
 <script>
 'use strict';
 /* ===================== 데이터 ===================== */
-const SAVE_KEY = 'mallang-hospital-v1', OPT_KEY = 'mallang-hospital-opt';
+const SAVE_KEY = 'mallang-hospital-v2', OPT_KEY = 'mallang-hospital-opt';
 const ANIMALS = ['🐶','🐱','🐰','🐻','🐼','🦊','🐹','🐨'];
 const ANAME = {'🐶':'멍멍','🐱':'냥냥','🐰':'토토','🐻':'곰곰','🐼':'판다','🦊':'여우','🐹':'햄찌','🐨':'코코'};
 const DEPTS = {
@@ -632,8 +632,8 @@ let S = null; // 저장되는 상태
 let G = null; // 하루 동안의 실행 상태
 
 function newState() {
-  const s = { v:1, day:1, money:300, rep:30, stars:0, grade:0, total:0,
-    depts:{int:true}, rooms:{exam:false,inj:false,rest:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
+  const s = { v:2, day:1, money:300, rep:30, stars:0, grade:0, total:0,
+    depts:{int:true}, rooms:{exam:false,inj:false,rest:false,surg:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
     staff:[], cands:[], candDay:0, tut:false, nextId:1 };
   S = s;
   s.staff.push(mkStaff('doctor', {dept:'int', animal:'🐻', spd:2, kind:2}));
@@ -649,7 +649,7 @@ function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
 }
 function load() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.v === 1) return s; } catch(e) {}
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.v === 2) return s; } catch(e) {}
   return null;
 }
 
@@ -657,7 +657,7 @@ function load() {
 const wageOf = s => 12 + (s.spd + s.kind)*7 + (s.lvl-1)*3;
 function mkStaff(role, o={}) {
   const s = { id:S.nextId++, role, dept:o.dept||null, animal:o.animal||pick(ANIMALS),
-    spd:o.spd||rnd(1,3), kind:o.kind||rnd(1,3), lvl:1, xp:0, fat:0, rest:0, t:0 };
+    spd:o.spd||rnd(1,3), kind:o.kind||rnd(1,3), lvl:1, xp:0, fat:0, rest:0, t:0, tr:0, name:null };
   s.wage = wageOf(s);
   return s;
 }
