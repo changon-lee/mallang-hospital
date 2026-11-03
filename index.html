@@ -525,15 +525,18 @@ const DEPTS = {
   den:  { name:'치과',     icon:'🪥', fee:55, price:2000, grade:1, syms:[['🦷',1,'이 아픔']] },
   skin: { name:'피부과',   icon:'🧴', fee:50, price:3200, grade:2, syms:[['🔴',1,'두드러기']] },
   obgy: { name:'산부인과', icon:'👶', fee:60, price:4200, grade:2, syms:[['🤰',1,'임신 검진'],['🍼',1,'산후 검진']] },
+  ear:  { name:'이비인후과', icon:'👂', fee:65, price:5200, grade:3, syms:[['👂',1,'귀 아픔'],['😮‍💨',1,'코막힘']] },
+  neu:  { name:'신경과',   icon:'🧠', fee:75, price:6500, grade:3, syms:[['🤕',1,'두통'],['😵‍💫',1,'어지럼']] },
 };
-const DEPT_ORDER = ['int','ort','eye','den','skin','obgy'];
+const DEPT_ORDER = ['int','ort','eye','den','skin','obgy','ear','neu'];
 const ROOMS = {
   ent:{name:'입구·접수',icon:'🚪'}, wait:{name:'대기실',icon:'🪑'}, cash:{name:'수납',icon:'💰'},
   pharm:{name:'약국',icon:'💊'}, inj:{name:'주사실',icon:'💉'}, exam:{name:'검사실',icon:'🩻'},
-  ward:{name:'입원실',icon:'🛏️'}, rest:{name:'휴게실',icon:'☕'}, more:{name:'확장 예정',icon:'🏗️'},
+  ward:{name:'입원실',icon:'🛏️'}, rest:{name:'휴게실',icon:'☕'}, surg:{name:'수술실',icon:'⚕️'}, more:{name:'확장 예정',icon:'🏗️'},
 };
 for (const d of DEPT_ORDER) ROOMS[d] = { name:DEPTS[d].name, icon:DEPTS[d].icon };
 const BUY_ROOMS = {
+  surg:{ price:3800, grade:3, desc:'진료 후 ⚕️ 수술이 필요한 환자를 받아요 (수술비가 커요)' },
   exam:{ price:450, grade:0, desc:'❓ 원인 불명 환자의 진짜 증상을 알아내요 (🩻 X-ray · 💉 피검사)' },
   inj: { price:350, grade:0, desc:'진료 후 💉 주사 처방 환자를 받아요 (진료비 +20)' },
   rest:{ price:800, grade:1, desc:'지친 직원(💤)이 알아서 쉬고 돌아와요' },
@@ -551,8 +554,9 @@ const DECOS = {
   fish: { name:'어항',   icon:'🐠', price:700,  grade:1, eff:.08 },
   kids: { name:'키즈존', icon:'🧸', price:1000, grade:2, eff:.10 },
 };
-const GRADES = ['동네의원','병원','종합병원'];
-const GRADE_TH = [{rep:55,total:50},{rep:75,total:200}];
+const GRADES = ['동네의원','병원','종합병원','대학병원'];
+const MAX_GRADE = GRADES.length - 1;
+const GRADE_TH = [{rep:55,total:50},{rep:75,total:200},{rep:88,total:450}];
 const ROLE = {
   doctor: { t:'선생님', b:'🩺', n:'의사',   desc:'진료과 담당 · ⚡가 높을수록 진료가 빨라요' },
   nurse:  { t:'간호사', b:'📋', n:'간호사', desc:'입구 환자를 자동으로 접수해요' },
@@ -572,11 +576,13 @@ const LAYOUT = {
     ['ent wait wait cash','int ort exam pharm','inj ward ward more'],
     ['ent wait wait cash rest','int ort eye den pharm','exam inj ward ward more'],
     ['ent wait wait wait cash rest','int ort eye den skin pharm','exam obgy inj ward ward ward'],
+    ['ent wait wait wait cash rest','int ort eye den skin pharm','obgy ear neu exam inj pharm','surg ward ward ward ward pharm'],
   ],
   narrow: [
     ['ent wait wait','ent wait wait','int ort exam','inj pharm cash','ward ward more'],
     ['ent wait wait','ent wait wait','int ort eye','den exam inj','pharm cash rest','ward ward more'],
     ['ent wait wait','ent wait wait','int ort eye','den skin obgy','exam inj pharm','cash ward ward','rest ward ward'],
+    ['ent wait wait','cash wait wait','int ort eye','den skin obgy','ear neu exam','inj surg pharm','ward ward pharm','ward ward rest'],
   ],
 };
 const ENT_CAP = 8, DAY_LEN = 180, SPAWN_END = 168;
@@ -742,12 +748,12 @@ function hospitalMul() {
 function addMoney(n) { S.money += n; const c = $('#hMoneyC'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
 function addRep(n) { S.rep = clamp(S.rep + n, 0, 100); }
 function gradeProgress() {
-  if (S.grade >= 2) return '최고 등급이에요! 👑';
+  if (S.grade >= MAX_GRADE) return '최고 등급이에요! 👑';
   const th = GRADE_TH[S.grade];
   return `다음 등급 <b>${GRADES[S.grade+1]}</b>: ⭐ 평판 ${repStars(S.rep)}/${repStars(th.rep)} · 🐾 누적 환자 ${S.total}/${th.total}`;
 }
 function checkPromo() {
-  if (S.grade >= 2) return false;
+  if (S.grade >= MAX_GRADE) return false;
   const th = GRADE_TH[S.grade];
   if (S.rep >= th.rep && S.total >= th.total) { S.grade++; return true; }
   return false;
@@ -839,7 +845,7 @@ function applyLayout() {
   mapEl.style.gridTemplateAreas = tpl.map(r => `"${r}"`).join(' ');
   mapEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
   mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(${mode==='wide'?120:104}px,1fr))`;
-  mapEl.style.maxWidth = mode==='wide' ? ['1000px','1240px','1440px'][S.grade] : '';
+  mapEl.style.maxWidth = mode==='wide' ? ['1000px','1240px','1440px','1600px'][S.grade] : '';
   // 문 위치: 아래에 복도가 있으면 아래쪽, 맨 아랫줄 방이면 위쪽
   const rows = tpl.map(r => r.split(' '));
   mapEl.querySelectorAll('.card').forEach(c => {
@@ -857,7 +863,7 @@ function lockedHTML(id) {
   return F('f-bl', '🚧') + F('f-tr', '📦') + `<div class="lk"><span class="big">🔒</span><b>${ROOMS[id].icon} ${ROOMS[id].name}</b><br><small>${why}</small></div>`;
 }
 function moreHTML() {
-  if (S.grade >= 2) return `<div class="lk"><span class="big">🌳</span><b>정원</b></div>`;
+  if (S.grade >= MAX_GRADE) return `<div class="lk"><span class="big">🌳</span><b>정원</b></div>`;
   const th = GRADE_TH[S.grade];
   return F('f-bl', '🚧') + F('f-br', '🧱') + `<div class="lk"><span class="big">🏗️</span><b>확장 공사 예정</b><br><small>${GRADES[S.grade+1]} 승급 조건<br>⭐ ${repStars(S.rep)}/${repStars(th.rep)} · 🐾 ${S.total}/${th.total}</small></div>`;
 }
@@ -1056,7 +1062,7 @@ function angry(p) {
   removeP(p, 'mad');
 }
 // 특별 환자 보너스 (응급 · 복합 증상 · VIP) — 수납과 입원 퇴원 모두 적용
-const extraPay = p => (p.emerg ? 50 + S.day*5 : 0) + (p.multi ? 20 : 0) + (p.vip ? 60 + S.day*8 : 0);
+const extraPay = p => (p.emerg ? Math.round((50 + S.day*5) * (S.grade >= 3 ? 1.5 : 1)) : 0) + (p.multi ? 20 : 0) + (p.vip ? 60 + S.day*8 : 0);
 function pay(p, opt = {}) {
   if (p.stage !== 'pay') return;
   const fast = !opt.auto && G.t - p.cashT < 4 ? 5 : 0;
@@ -1426,7 +1432,7 @@ function prepDay() {
   G.goals = makeGoals(); G.event = rollEvent();
   const vg = G.goals.find(g => g.type === 'vip');
   if (vg) G.vipTimes = Array.from({length:vg.target+1}, () => rnd(8,150)).sort((a,b) => a-b);
-  const ne = S.day < 3 ? 0 : 1 + (S.day >= 7 ? 1 : 0) + S.grade;
+  const ne = S.day < 3 ? 0 : 1 + (S.day >= 7 ? 1 : 0) + S.grade + (S.grade >= 3 ? 1 : 0);
   G.emergTimes = Array.from({length:ne}, () => rnd(25,150)).sort((a,b) => a-b);
   hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
   showPrep();
