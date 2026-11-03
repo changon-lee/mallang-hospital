@@ -105,7 +105,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .sb i{position:absolute;right:-.3em;bottom:-.1em;font-size:.5em;font-style:normal}
 .sb em{position:absolute;right:-.3em;top:-.5em;font-size:.5em;font-style:normal;animation:bob 1.2s infinite}
 .sb.tired{filter:saturate(.5)}
-.c-ent .staffs{position:absolute;right:0;bottom:0}
+.c-ent .staffs,.c-cash .staffs{position:absolute;right:0;bottom:0}
 .c-wait .staffs{position:absolute;right:2px;bottom:0;z-index:3}
 .c-rest .staffs{flex-wrap:wrap;justify-content:center}
 .c-dept .sb,.c-pharm .sb{font-size:calc(var(--pz)*1.1)}
@@ -558,6 +558,7 @@ const ROLE = {
   nurse:  { t:'간호사', b:'📋', n:'간호사', desc:'입구 환자를 자동으로 접수해요' },
   pharm:  { t:'약사',   b:'💊', n:'약사',   desc:'약국 처리가 빨라져요' },
   janitor:{ t:'청소부', b:'🧹', n:'청소부', desc:'대기실 쓰레기를 치워요 · 위생 점검 대비' },
+  cashier:{ t:'수납 간호사', b:'💳', n:'수납 간호사', desc:'수납 줄의 환자를 자동으로 계산해요' },
 };
 const DEST = { pharm:'💊', inj:'💉', ward:'🛏️' };
 const EVENTS = {
@@ -677,7 +678,7 @@ const slotDoctor = (r, i) => doctorsOf(r)[i];
 const slotReady = (r, i) => { if (!DEPTS[r]) return true; const s = slotDoctor(r, i); return !!s && !(s.rest > 0); };
 const weakestDoctor = d => doctorsOf(d).reduce((w, s) => (!w || s.spd + s.kind < w.spd + w.kind) ? s : w, null);
 const pharmacist = () => S.staff.find(s => s.role==='pharm' && !(s.rest > 0));
-const capOf = role => role==='doctor' ? docCap() : role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : 1;
+const capOf = role => role==='doctor' ? docCap() : role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : role==='cashier' ? [0,1,2,2][S.grade] : 1;
 const staffInfo = s => `${s.animal} ${staffName(s)} Lv.${s.lvl} · ⚡${s.spd} 😊${s.kind} · 피로 ${Math.round(s.fat)}%${s.rest>0?' (휴식 중 ☕)':''}`;
 
 function work(s, f) {
@@ -695,9 +696,11 @@ function work(s, f) {
 }
 function genCands() {
   const roles = ['nurse','doctor','pharm','janitor'];
+  if (S.grade >= 1) roles.push('cashier');
   const list = [];
   if (!S.staff.some(s=>s.role==='nurse')) list.push('nurse');
   if (S.day >= 3 && !S.staff.some(s=>s.role==='janitor')) list.push('janitor');
+  if (S.grade >= 1 && !S.staff.some(s=>s.role==='cashier')) list.push('cashier');
   while (list.length < 3) list.push(pick(roles));
   const b = S.grade;
   S.cands = list.map(role => {
@@ -879,7 +882,7 @@ function cardHTML(id) {
     case 'pharm': return hdr('💊','약국','<span class="syms small">창구 3개</span>') + `<div class="cb has-shelf pharm-cb">${F('shelf','💊🧴💊🧴💊🧴')}<span class="staffs" data-staff="pharm"></span><div class="pslots">${slotHTML('창구1')}${slotHTML('창구2')}${slotHTML('창구3')}</div><div class="queue pq" id="pharmQ"></div></div>`;
     case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}</div>`;
     case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(1+S.up.ward)}</div></div>`;
-    case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div></div>`;
+    case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div><span class="staffs" data-staff="cash"></span></div>`;
     case 'rest':  return hdr('☕','휴게실') + `<div class="cb">${F('f-tr','☕')}${F('f-tl','🪴')}${F('sofa f-b','🛋️')}<span class="staffs" data-staff="rest"></span><span class="rest-empty">조용~ 🍵</span></div>`;
   }
   return '';
@@ -899,7 +902,7 @@ function buildMap() {
   G.seatEls = [...mapEl.querySelectorAll('.seat')]; G.seats = G.seatEls.map(() => null);
   renderStaff();
 }
-function staffHome(s) { return s.role==='doctor' ? s.dept : s.role==='nurse' ? 'ent' : s.role==='pharm' ? 'pharm' : 'wait'; }
+function staffHome(s) { return s.role==='doctor' ? s.dept : s.role==='nurse' ? 'ent' : s.role==='pharm' ? 'pharm' : s.role==='cashier' ? 'cash' : 'wait'; }
 function staffBadge(s) {
   const tired = s.fat >= 80 && !(s.rest > 0);
   return `<span class="sb${tired?' tired':''}" title="${staffName(s)} Lv.${s.lvl}">${s.animal}<i>${ROLE[s.role].b}</i>${s.rest>0?'<em>☕</em>':tired?'<em>💤</em>':''}</span>`;
@@ -1054,9 +1057,9 @@ function angry(p) {
 }
 // 특별 환자 보너스 (응급 · 복합 증상 · VIP) — 수납과 입원 퇴원 모두 적용
 const extraPay = p => (p.emerg ? 50 + S.day*5 : 0) + (p.multi ? 20 : 0) + (p.vip ? 60 + S.day*8 : 0);
-function pay(p) {
+function pay(p, opt = {}) {
   if (p.stage !== 'pay') return;
-  const fast = G.t - p.cashT < 4 ? 5 : 0;
+  const fast = !opt.auto && G.t - p.cashT < 4 ? 5 : 0;
   const tip = (p.karen ? 0 : Math.round(p.fee * .25 * p.pat / 100) + fast) + extraPay(p);
   const total = p.fee + tip;
   addMoney(total); G.stats.income += total; G.stats.treated++; S.total++;
@@ -1246,6 +1249,12 @@ function updStaff(dt) {
       if (s.t <= 0) {
         const p = G.patients.find(x => x.stage === 'new');
         if (p) { register(p); work(s, 4); s.t = 3.4 - s.spd*.45; } else s.t = .3;
+      }
+    } else if (s.role === 'cashier') {
+      s.t -= dt*tm;
+      if (s.t <= 0) {
+        const p = G.patients.filter(x => x.stage === 'pay').sort((a, b) => a.cashT - b.cashT)[0];
+        if (p) { pay(p, { auto:true }); work(s, 4); s.t = 3.2 - s.spd*.4; } else s.t = .3;
       }
     } else if (s.role === 'janitor') {
       if (G.dirt.length) { s.t += dt*tm; if (s.t >= 5 - s.spd*.7) { s.t = 0; cleanDirt(G.dirt[0], true); work(s, 6); } }
@@ -1515,7 +1524,7 @@ function showPromo() {
 /* ===================== 상점 ===================== */
 const coin = n => `<span class="coin">💰</span>${fmtN(n)}`;
 const dots = (n, cls) => `<span class="dots ${cls}">${'<i class="on"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
-const ROLE_TONE = { doctor:'sky', nurse:'mint', pharm:'lav', janitor:'lemon' };
+const ROLE_TONE = { doctor:'sky', nurse:'mint', pharm:'lav', janitor:'lemon', cashier:'peach' };
 // 상점 카드 한 장
 function itemHTML(o) {
   const st = o.own ? ' own' : o.dis ? ' dim' : '';
@@ -1563,6 +1572,7 @@ function priceState(own, ownLab, grade, price, blocked) {
 function hireCheck(c) {
   const fee = c.wage*2;
   if (c.role === 'doctor') return { ok:S.money >= fee, label:`${doctorsOf(c.dept).length >= docCap() ? '🔄 교체' : '💌 고용'} ${coin(fee)}` };
+  if (capOf(c.role) <= 0) return { ok:false, label:'🔒 병원 승급 후' };
   if (S.staff.filter(s => s.role === c.role).length >= capOf(c.role)) return { ok:false, label:'자리가 꽉 찼어요' };
   return { ok:S.money >= fee, label:`💌 고용 ${coin(fee)}` };
 }
@@ -1612,7 +1622,7 @@ function showShop(tab) {
       <div class="sgrid">${S.staff.map(s => staffCard(s, 0, false)).join('')}</div>
       <div class="ssec">💌 오늘의 지원자 <small>계약금 = 일급 ×2</small></div>
       ${S.cands.length ? `<div class="sgrid">${S.cands.map((c, i) => staffCard(c, i, true)).join('')}</div>` : '<div class="stip">🌙 오늘 지원자는 모두 만났어요. 내일 새 지원자가 와요!</div>'}
-      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 ${docCap()}명 (의사 수만큼 진료 의자)<br>😊 친절이 높을수록 환자 하트가 천천히 줄고, 일할수록 레벨 업해요!</div>`;
+      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 수납 간호사 ${capOf('cashier') ? capOf('cashier') + '명' : '병원부터'} · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 ${docCap()}명 (의사 수만큼 진료 의자)<br>😊 친절이 높을수록 환자 하트가 천천히 줄고, 일할수록 레벨 업해요!</div>`;
   }
   openModal(`<div class="shop-head"><div class="awning"></div>
       <div class="shop-title">🛒 말랑 상점</div>
@@ -1751,7 +1761,7 @@ function tapPatient(p) {
 function tapRoom(id, c) {
   bounceEl(c);
   if (G.sel) { const p = G.sel; deselect(); sendTo(p, id); return; }
-  if (id === 'cash') { const p = G.patients.find(x => x.stage === 'pay'); if (p) pay(p); else SFX.tap(); return; }
+  if (id === 'cash') { const p = G.patients.find(x => x.stage === 'pay'); if (p) pay(p); else { SFX.tap(); const c = S.staff.filter(s => s.role === 'cashier'); toast(c.length ? c.map(staffInfo).join('<br>') : S.grade >= 1 ? '💳 수납 간호사를 고용하면 수납을 자동으로 해 줘요!' : '💳 병원이 되면 수납 간호사를 고용할 수 있어요!'); } return; }
   if (isLocked(id) || id === 'more') { lockedInfo(id); return; }
   SFX.tap();
   if (DEPTS[id]) { const ds = doctorsOf(id); if (ds.length) toast(ds.map(staffInfo).join('<br>')); }
