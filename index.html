@@ -252,6 +252,8 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .dots.spd i.on{background:#ffc94d;box-shadow:0 1px 0 #e0a92a}
 .dots.kind i.on{background:#ff8fb1;box-shadow:0 1px 0 #e06d93}
 .wage{font-size:.9rem;color:#8a7a8f}
+.sname .rn{border:0;background:none;padding:0 2px;font-size:.9rem}
+.rn-in{width:100%;font:inherit;font-weight:800;text-align:center;border:2px solid var(--mint2);border-radius:10px;padding:3px 6px;user-select:text;-webkit-user-select:text}
 .trainrow{display:flex;gap:6px;width:100%;margin-top:6px}.trainrow .sbuy{margin-top:0;font-size:.85rem;padding:6px 2px}
 .ssec{display:flex;align-items:baseline;gap:8px;font-size:1.15rem;font-weight:900;color:#5b4a60;margin:14px 4px 10px}
 .ssec:first-child{margin-top:4px}
@@ -491,6 +493,7 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
       <span class="saved" id="hSave">💾</span>
       <div class="speed"><button data-sp="0" title="일시정지 (스페이스)">⏸</button><button data-sp="1" class="on" title="1배속">1x</button><button data-sp="2" title="2배속">2x</button><button data-sp="4" title="4배속">4x</button></div>
       <button id="bSound" class="ibtn" title="효과음">🔊</button>
+      <button id="bStaff" class="ibtn" title="직원 명부">👥</button>
       <button id="bGuide" class="ibtn" title="증상표">📖</button>
       <button id="bMenu" class="ibtn" title="메인 화면">🏠</button>
     </div>
@@ -1453,6 +1456,7 @@ function showPrep() {
     <div class="brow">
       <button class="btn" data-act="shop:dept">🛒 상점</button>
       <button class="btn" data-act="shop:staff">👩‍⚕️ 직원</button>
+      <button class="btn" data-act="roster">👥 명부</button>
       <button class="btn" data-act="guide">📖 증상표</button>
       <button class="btn" data-act="sound">${OPT.sound?'🔊':'🔇'}</button>
     </div>
@@ -1727,6 +1731,33 @@ function showGuide() {
     <div class="box"><b>조작</b><br>톡: 접수 · 환자 선택 · 수납 / 끌기: 진료실 안내<br>환자 톡 → 방 톡으로도 안내돼요 · 쓰레기 🧻 톡: 청소<br>스페이스: 일시정지 · 1/2/4: 배속</div>
     <div class="brow"><button class="btn pri" data-act="guideClose">알겠어요!</button></div>`);
 }
+const ROSTER_ORDER = ['doctor','nurse','cashier','pharm','janitor'];
+function showRoster() {
+  if (G.mode === 'play') G.modal = true;
+  const list = ROSTER_ORDER.flatMap(r => S.staff.filter(s => s.role === r));
+  const card = s => `<div class="sitem t-${ROLE_TONE[s.role]}">
+    <span class="stag">${ROLE[s.role].n}</span>
+    <div class="sicon">${s.animal}<i class="rb">${ROLE[s.role].b}</i></div>
+    <div class="sname" data-sid="${s.id}">${staffName(s)} <button class="rn" data-act="rename:${s.id}" title="이름 바꾸기">✏️</button></div>
+    <div class="sdesc">${s.dept ? `${DEPTS[s.dept].icon} ${DEPTS[s.dept].name} 담당` : ROLE[s.role].desc}</div>
+    <div class="stats"><div>⚡ 속도 ${dots(s.spd, 'spd')}</div><div>😊 친절 ${dots(s.kind, 'kind')}</div></div>
+    <div class="wage">Lv.${s.lvl} · 피로 ${Math.round(s.fat)}%${s.rest > 0 ? ' ☕' : ''} · 일급 <b>💰${s.wage}</b></div>
+  </div>`;
+  openModal(`<h2>👥 직원 명부</h2><p class="sub">우리 병원 식구 ${S.staff.length}명 · ✏️를 눌러 이름을 바꿀 수 있어요</p>
+    <div class="sgrid">${list.map(card).join('')}</div>
+    <div class="brow"><button class="btn pri" data-act="rosterClose">닫기</button></div>`, 'wide');
+}
+function closeRoster() { if (G.mode === 'prep') showPrep(); else { closeModal(); G.modal = false; } }
+function startRename(id) {
+  const s = S.staff.find(x => x.id === id), row = document.querySelector(`.modal .sname[data-sid="${id}"]`);
+  if (!s || !row) return;
+  row.innerHTML = '<input class="rn-in" maxlength="10" placeholder="이름 (최대 10자)">';
+  const inp = row.firstChild; inp.value = s.name || ''; inp.focus();
+  let done = false;
+  const finish = keep => { if (done) return; done = true; if (keep) setStaffName(id, inp.value); showRoster(); };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+  inp.addEventListener('blur', () => finish(true));
+}
 function closeGuide() { if (G.mode === 'prep') showPrep(); else { closeModal(); G.modal = false; } }
 function showMenu() {
   if (G.mode === 'play') G.modal = true;
@@ -1776,6 +1807,9 @@ function act(a) {
     case 'sumOk': nextDay(); break;
     case 'promoOk': prepDay(); break;
     case 'ad': buyAd(v); break;
+    case 'roster': showRoster(); break;
+    case 'rosterClose': closeRoster(); break;
+    case 'rename': startRename(+v); break;
     case 'menuNo': closeModal(); G.modal = false; if (G.mode === 'prep') showPrep(); else if (G.mode === 'summary' && G.back) G.back(); break;
     case 'menuYes': showTitle(); break;
     case 'newYes': closeModal(); try { localStorage.removeItem(SAVE_KEY); } catch(e) {} newState(); save(); startGame(S); break;
@@ -1865,6 +1899,7 @@ addEventListener('pointercancel', () => { if (drag) { if (drag.moved) endDrag(dr
 document.querySelectorAll('.speed button').forEach(b => b.addEventListener('click', () => { if (G && G.mode === 'play') { setSpeed(+b.dataset.sp); SFX.tap(); } }));
 $('#pauseOv').addEventListener('click', () => setSpeed(G.resume || 1));
 $('#bSound').addEventListener('click', toggleSound);
+$('#bStaff').addEventListener('click', () => { if (G && (G.mode === 'play' || G.mode === 'prep')) { SFX.tap(); showRoster(); } });
 $('#bGuide').addEventListener('click', () => { if (G && (G.mode === 'play' || G.mode === 'prep')) { SFX.tap(); showGuide(); } });
 $('#bMenu').addEventListener('click', () => { if (G && G.mode !== 'menu') { SFX.tap(); showMenu(); } });
 $('#tCont').addEventListener('click', () => { const s = load(); if (!s) return; SFX.tap(); startGame(Object.assign(newState(), s)); });
@@ -1875,6 +1910,7 @@ $('#tNew').addEventListener('click', () => {
 });
 $('#tSound').addEventListener('click', toggleSound);
 addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
   if (!G || G.mode !== 'play' || G.modal) return;
   if (e.code === 'Space') { e.preventDefault(); setSpeed(G.speed === 0 ? (G.resume || 1) : 0); }
   else if (e.key === '1') setSpeed(1);
