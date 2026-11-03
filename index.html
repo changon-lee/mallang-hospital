@@ -564,7 +564,7 @@ const ROLE = {
   janitor:{ t:'청소부', b:'🧹', n:'청소부', desc:'대기실 쓰레기를 치워요 · 위생 점검 대비' },
   cashier:{ t:'수납 간호사', b:'💳', n:'수납 간호사', desc:'수납 줄의 환자를 자동으로 계산해요' },
 };
-const DEST = { pharm:'💊', inj:'💉', ward:'🛏️' };
+const DEST = { pharm:'💊', inj:'💉', ward:'🛏️', surg:'⚕️' };
 const EVENTS = {
   flu:     { icon:'🤧', name:'독감 시즌', desc:'오늘은 🤧 감기 환자가 엄청 많이 와요! 내과를 바쁘게 돌려 봐요.' },
   group:   { icon:'🚑', name:'단체 환자', desc:'오늘 중에 단체 환자가 한꺼번에 도착해요. 대기실을 비워 둬요!' },
@@ -886,6 +886,7 @@ function cardHTML(id) {
     }
     case 'exam':  return hdr('🩻','검사실','<span class="syms">❓→🔍</span>') + `<div class="cb room1">${F('f-tl lightbox','🩻')}${F('f-tr','🧪')}${slotHTML('🩻 X-ray')}${slotHTML('💉 피검사')}</div>`;
     case 'pharm': return hdr('💊','약국','<span class="syms small">창구 3개</span>') + `<div class="cb has-shelf pharm-cb">${F('shelf','💊🧴💊🧴💊🧴')}<span class="staffs" data-staff="pharm"></span><div class="pslots">${slotHTML('창구1')}${slotHTML('창구2')}${slotHTML('창구3')}</div><div class="queue pq" id="pharmQ"></div></div>`;
+    case 'surg':  return hdr('⚕️','수술실') + `<div class="cb room1">${F('f-tl lightbox','💡')}${F('cart f-br','🩺🧤')}${slotHTML()}</div>`;
     case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}</div>`;
     case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(1+S.up.ward)}</div></div>`;
     case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div><span class="staffs" data-staff="cash"></span></div>`;
@@ -1089,7 +1090,7 @@ function pay(p, opt = {}) {
 function validRooms(p) {
   const v = [];
   if (!p.done) { DEPT_ORDER.forEach(d => S.depts[d] && v.push(d)); if (S.rooms.exam && p.unknown && !p.revealed) v.push('exam'); }
-  else { v.push('pharm', 'ward'); if (S.rooms.inj) v.push('inj'); }
+  else { v.push('pharm', 'ward'); if (S.rooms.inj) v.push('inj'); if (S.rooms.surg) v.push('surg'); }
   if (p.loc === 'ent' && freeSeat() >= 0) v.push('wait');
   return v;
 }
@@ -1154,6 +1155,7 @@ function treatDur(r, i = 0) {
 function svcDur(r) {
   if (r === 'exam') return 3.5;
   if (r === 'inj') return 4.5;
+  if (r === 'surg') return 8;
   if (G.tut) return 2.5;
   const ph = pharmacist();
   return ph ? 4 / (.5 + .25*ph.spd) * (ph.fat >= 100 ? 1.5 : 1) : 6;
@@ -1174,11 +1176,13 @@ function enterRoom(r, i, p) {
 }
 function rollDest(r, p) {
   if (G.tut) return 'pharm';
+  const surgW = S.rooms.surg ? (p && p.emerg ? 3 : (r === 'ort' || r === 'neu') ? 2 : .5) : 0;
   if (p && p.emerg) r = 'obgy'; // 응급 환자도 입원 확률 높게
   const opts = [['pharm', 6]];
   if (S.rooms.inj) opts.push(['inj', 3]);
   const beds = G.slots.ward.filter(x => !x).length - G.patients.filter(p => p.dest === 'ward' && (p.stage === 'next' || p.stage === 'svc')).length;
   if (beds > 0) opts.push(['ward', r === 'obgy' ? 5 : 1.4]);
+  if (surgW) opts.push(['surg', surgW]);
   return wpick(opts);
 }
 function svcStep(r, i, p) {
@@ -1217,7 +1221,7 @@ function svcStep(r, i, p) {
     p.revealed = true; p.shown = p.sym; p.fee += 15; p.stage = 'reg';
     toSeat(p); updBub(p); say(p, '검사 결과 나왔어요! ' + p.sym); SFX.done();
   } else {
-    p.fee += r === 'pharm' ? 10 : 20;
+    p.fee += r === 'pharm' ? 10 : r === 'surg' ? 120 + S.day*3 : 20;
     if (r === 'pharm') work(pharmacist(), 5);
     p.stage = 'pay'; toCash(p); updBub(p); SFX.done();
     if (G.tut === 5) setTut(6);
@@ -1607,7 +1611,7 @@ function showShop(tab) {
         desc:`<span class="symrow">${d.syms.map(s => `<em>${s[0]} ${s[2]}</em>`).join('')}</span>${id === 'obgy' ? '🛏️ 입원 환자가 많아요<br>' : ''}신입 의사 선생님이 함께 와요 🐾` });
     }).join('') + '</div><div class="stip">💡 진료과를 열면 그 증상의 환자들이 찾아와요. 날이 갈수록 증상 종류도 늘어나요!</div>';
   } else if (tab === 'room') {
-    const tones = { exam:'lav', inj:'sky', rest:'peach' };
+    const tones = { exam:'lav', inj:'sky', rest:'peach', surg:'pink' };
     body = '<div class="ssec">🚪 새 방 짓기</div><div class="sgrid">' + Object.keys(BUY_ROOMS).map(id => {
       const r = BUY_ROOMS[id], ps = priceState(S.rooms[id], '완성!', r.grade, r.price);
       return itemHTML({ icon:ROOMS[id].icon, name:ROOMS[id].name, tone:tones[id], desc:r.desc, key:`room:${id}`, own:S.rooms[id], ...ps });
@@ -1684,7 +1688,7 @@ function showGuide() {
       🚨 응급 환자: 접수 없이 바로 와요. 정해진 시간(${emergLimit()}초) 안에 진료를 시작해야 해요! 진료 줄 맨 앞으로 들어가고 보상이 커요<br>
       🩺 복합 증상: 말풍선에 증상이 두 개! 진료과를 하나씩 차례로 들러요 (순서는 자유)<br>
       🕶️ 진상 환자: 가끔 소란을 피워 주변 하트를 깎고 새치기해요. 소란 중일 때 4번 톡톡 눌러 달래 주세요</div>
-    <div class="box"><b>진료 후</b><br>💊 약국 · 💉 주사실 → 💰 수납<br>🛏️ 입원실: 하루가 끝나면 퇴원하며 큰 돈을 내요</div>
+    <div class="box"><b>진료 후</b><br>💊 약국 · 💉 주사실 · ⚕️ 수술실 → 💰 수납<br>🛏️ 입원실: 하루가 끝나면 퇴원하며 큰 돈을 내요</div>
     <div class="box"><b>조작</b><br>톡: 접수 · 환자 선택 · 수납 / 끌기: 진료실 안내<br>환자 톡 → 방 톡으로도 안내돼요 · 쓰레기 🧻 톡: 청소<br>스페이스: 일시정지 · 1/2/4: 배속</div>
     <div class="brow"><button class="btn pri" data-act="guideClose">알겠어요!</button></div>`);
 }
