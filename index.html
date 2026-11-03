@@ -252,6 +252,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .dots.spd i.on{background:#ffc94d;box-shadow:0 1px 0 #e0a92a}
 .dots.kind i.on{background:#ff8fb1;box-shadow:0 1px 0 #e06d93}
 .wage{font-size:.9rem;color:#8a7a8f}
+.trainrow{display:flex;gap:6px;width:100%;margin-top:6px}.trainrow .sbuy{margin-top:0;font-size:.85rem;padding:6px 2px}
 .ssec{display:flex;align-items:baseline;gap:8px;font-size:1.15rem;font-weight:900;color:#5b4a60;margin:14px 4px 10px}
 .ssec:first-child{margin-top:4px}
 .ssec small{font-size:.85rem;color:#9b8a9f;font-weight:700}
@@ -650,7 +651,7 @@ function newG() {
   return { mode:'idle', speed:1, modal:false, t:0, spawnT:2, pid:0, patients:[], dirt:[], dirtT:16,
     combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0},
     goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
-    entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0 };
+    entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0 };
 }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
@@ -735,6 +736,7 @@ const emergLimit = () => Math.round(38 - 10*ramp(3, 10)); // 응급 제한 시�
 function spawnInterval() {
   let iv = baseInterval();
   if (G.event && G.event.id==='flu') iv *= .78;
+  if (G.ad) iv *= ADS[G.ad].mul;
   return iv * (.7 + Math.random()*.6);
 }
 function hospitalMul() {
@@ -997,7 +999,7 @@ function spawn(force=false, o={}) {
   if (o.vip != null) vip = o.vip;
   else if (emerg || karen) vip = false;
   else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
-  else if (S.day >= 3 && Math.random() < .03 + .06*ramp(3, 10)) vip = true;
+  else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1)) vip = true;
   const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:symDept(sym), unknown, revealed:false, shown:unknown?'❓':sym,
     urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
     extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
@@ -1454,6 +1456,7 @@ function showPrep() {
       <button class="btn" data-act="guide">📖 증상표</button>
       <button class="btn" data-act="sound">${OPT.sound?'🔊':'🔇'}</button>
     </div>
+    ${adBoxHTML()}
     <div class="brow"><button class="btn pri big" data-act="start">영업 시작 ▶</button></div>`);
 }
 function startDay() {
@@ -1490,7 +1493,7 @@ function endDay() {
   const res = G.goals.map(g => { const ok = goalOk(g); if (ok) { bonus += goalReward(); got++; } return [g, ok]; });
   addMoney(bonus); S.stars += got; addRep(got);
   const wages = S.staff.reduce((a,s) => a + s.wage, 0); addMoney(-wages);
-  const net = st.income + bonus - wages - st.fine, dRep = S.rep - G.repStart;
+  const net = st.income + bonus - wages - st.fine - G.adCost, dRep = S.rep - G.repStart;
   const cmt = st.angry === 0 && st.treated >= 5 ? '화난 환자 0명! 정말 다정한 병원이에요 💕' : net > 0 ? '오늘도 수고 많았어요, 원장님! 🌙' : '힘든 하루였죠? 내일은 더 잘될 거예요 🍀';
   SFX.day(); updateHUD();
   const dayNo = S.day;
@@ -1514,6 +1517,7 @@ function endDay() {
       ${bonus ? row('목표 보너스', `+💰${fmtN(bonus)}`, 'plus') : ''}
       ${row(`직원 일급 (${S.staff.length}명)`, `-💰${fmtN(wages)}`, 'minus')}
       ${st.fine ? row('위생 벌금', `-💰${fmtN(st.fine)}`, 'minus') : ''}
+      ${G.adCost ? row(`📣 홍보비 (${ADS[G.ad].name})`, `-💰${fmtN(G.adCost)}`, 'minus') : ''}
       <div class="row tot"><span>순이익</span><b class="${net >= 0 ? 'plus' : 'minus'}">${net >= 0 ? '+' : ''}💰${fmtN(net)}</b></div>
     </div>
     <div class="box"><b>🎯 오늘의 목표</b><br>${res.map(([g, ok]) => `${ok ? '✅' : '❌'} ${goalText(g)} ${ok ? '<span class="stars">+🌟</span>' : ''}`).join('<br>')}</div>
@@ -1597,8 +1601,34 @@ function staffCard(s, i, cand) {
     <div class="sname">${staffName(s)}</div>
     <div class="sdesc">${s.dept ? `${DEPTS[s.dept].icon} ${DEPTS[s.dept].name} 담당` : ROLE[s.role].desc}</div>
     <div class="stats"><div>⚡ 속도 ${dots(s.spd, 'spd')}</div><div>😊 친절 ${dots(s.kind, 'kind')}</div></div>
-    <div class="wage">일급 <b>💰${s.wage}</b></div>${btn}
+    <div class="wage">일급 <b>💰${s.wage}</b></div>${cand ? '' : trainHTML(s)}${btn}
   </div>`;
+}
+const trainCost = s => Math.round(250 * 1.6 ** (s.tr || 0));
+function trainHTML(s) {
+  if (S.grade < 2) return '<div class="wage">🔒 종합병원부터 연수</div>';
+  const c = trainCost(s), b = (k, ic) => `<button class="sbuy ghost" data-act="buy:train:${s.id}:${k}" ${s[k] >= 5 || S.money < c ? 'disabled' : ''}>📚 ${ic} ${s[k] >= 5 ? 'MAX' : coin(c)}</button>`;
+  return `<div class="trainrow">${b('spd','⚡')}${b('kind','😊')}</div>`;
+}
+const ADS = {
+  flyer:{ icon:'📄', name:'전단지', base:200,  per:10, mul:.87 },
+  radio:{ icon:'📻', name:'라디오', base:600,  per:20, mul:.75 },
+  tv:   { icon:'📺', name:'TV 광고', base:1500, per:40, mul:.65, vip:1.5 },
+};
+const adCost = id => ADS[id].base + S.day * ADS[id].per;
+function buyAd(id) {
+  if (!ADS[id] || S.grade < 2 || G.mode !== 'prep' || G.ad) return;
+  const c = adCost(id); if (S.money < c) return;
+  S.money -= c; G.ad = id; G.adCost = c; SFX.buy(); updateHUD(); showPrep();
+}
+function adBoxHTML() {
+  if (S.grade < 2) return '';
+  const pct = id => Math.round((1/ADS[id].mul - 1)*100);
+  const btns = Object.keys(ADS).map(id => {
+    const on = G.ad === id, a = ADS[id];
+    return `<button class="btn${on ? ' mint' : ''}" data-act="ad:${id}" ${G.ad || S.money < adCost(id) ? 'disabled' : ''}>${a.icon} ${a.name} ${on ? '✓ 진행 중' : '💰' + fmtN(adCost(id))}</button>`;
+  }).join('');
+  return `<div class="box"><b>📣 오늘의 홍보</b> <small>하루 한 번 · 환자가 더 많이 와요 (전단지 +${pct('flyer')}% · 라디오 +${pct('radio')}% · TV +${pct('tv')}%, TV는 VIP도 ↑)</small><div class="brow" style="margin-top:8px">${btns}</div></div>`;
 }
 function showShop(tab) {
   G.shopTab = tab = tab || G.shopTab || 'dept';
@@ -1642,7 +1672,7 @@ function showShop(tab) {
     <div class="shop-foot"><button class="btn pri big" data-act="prep">← 영업 준비로</button></div>`, 'shop');
 }
 function buy(key) {
-  const [kind, id] = key.split(':'); let msg = '';
+  const [kind, id, sub] = key.split(':'); let msg = '';
   if (kind === 'dept') {
     const d = DEPTS[id];
     if (S.depts[id] || S.grade < d.grade || !prevOwned(id) || S.money < d.price) return;
@@ -1666,6 +1696,11 @@ function buy(key) {
     S.money -= c.wage*2;
     if (c.role === 'doctor' && doctorsOf(c.dept).length >= docCap()) { const w = weakestDoctor(c.dept); S.staff = S.staff.filter(s => s !== w); }
     S.staff.push(c); S.cands.splice(+id, 1); msg = `${c.animal} ${staffName(c)} 입사! 잘 부탁해요 💕`;
+  } else if (kind === 'train') {
+    const s = S.staff.find(x => x.id === +id), c = s && trainCost(s);
+    if (!s || S.grade < 2 || !['spd','kind'].includes(sub) || s[sub] >= 5 || S.money < c) return;
+    S.money -= c; s[sub]++; s.tr++; s.wage = wageOf(s);
+    msg = `📚 ${staffName(s)} 연수 완료! ${sub === 'spd' ? '⚡속도' : '😊친절'} ${s[sub]}`;
   } else if (kind === 'fire') {
     const s = S.staff.find(x => x.id === +id); if (!s || (s.role === 'doctor' && doctorsOf(s.dept).length < 2)) return;
     S.staff = S.staff.filter(x => x !== s); msg = `${s.animal} ${staffNameJo(s,'과','와')} 작별했어요 👋`;
@@ -1740,6 +1775,7 @@ function act(a) {
     case 'sound': toggleSound(); showPrep(); break;
     case 'sumOk': nextDay(); break;
     case 'promoOk': prepDay(); break;
+    case 'ad': buyAd(v); break;
     case 'menuNo': closeModal(); G.modal = false; if (G.mode === 'prep') showPrep(); else if (G.mode === 'summary' && G.back) G.back(); break;
     case 'menuYes': showTitle(); break;
     case 'newYes': closeModal(); try { localStorage.removeItem(SAVE_KEY); } catch(e) {} newState(); save(); startGame(S); break;
