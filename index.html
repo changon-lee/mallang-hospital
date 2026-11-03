@@ -93,7 +93,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .prog{position:absolute;left:6px;right:6px;bottom:3px;height:5px;background:#0000000f;border-radius:9px;overflow:hidden}
 .prog i{display:block;height:100%;width:0;background:var(--mintD);border-radius:9px}
 .prog.chk i{background:var(--yel)}
-.card.closed .slot::after{content:"☕ 휴식 중";position:absolute;inset:0;display:grid;place-items:center;font-size:11px;background:#fff9;border-radius:12px}
+.slot.closed::after{content:"☕ 휴식 중";position:absolute;inset:0;display:grid;place-items:center;font-size:11px;background:#fff9;border-radius:12px}
 .beds{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center}
 .bed{position:relative;width:calc(var(--pz)*2);height:calc(var(--pz)*2.5);border-radius:12px;background:#fff;border:2px solid var(--lav2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px}
 .bed::before{content:"";position:absolute;top:4px;left:18%;right:18%;height:20%;background:var(--lav);border-radius:8px}
@@ -670,10 +670,14 @@ function setStaffName(id, input) {
   const v = Array.from(String(input || '').trim()).slice(0, 10).join('').trim();
   s.name = v || null; save();
 }
-const doctorOf = d => S.staff.find(s => s.role==='doctor' && s.dept===d);
-const doctorReady = d => { const s = doctorOf(d); return !!s && !(s.rest > 0); };
+const doctorsOf = d => S.staff.filter(s => s.role==='doctor' && s.dept===d);
+const doctorOf = d => doctorsOf(d)[0];
+const docCap = () => [1,2,3,3][S.grade] || 3;
+const slotDoctor = (r, i) => doctorsOf(r)[i];
+const slotReady = (r, i) => { if (!DEPTS[r]) return true; const s = slotDoctor(r, i); return !!s && !(s.rest > 0); };
+const weakestDoctor = d => doctorsOf(d).reduce((w, s) => (!w || s.spd + s.kind < w.spd + w.kind) ? s : w, null);
 const pharmacist = () => S.staff.find(s => s.role==='pharm' && !(s.rest > 0));
-const capOf = role => role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : 1;
+const capOf = role => role==='doctor' ? docCap() : role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : 1;
 const staffInfo = s => `${s.animal} ${staffName(s)} Lv.${s.lvl} · ⚡${s.spd} 😊${s.kind} · 피로 ${Math.round(s.fat)}%${s.rest>0?' (휴식 중 ☕)':''}`;
 
 function work(s, f) {
@@ -698,7 +702,7 @@ function genCands() {
   const b = S.grade;
   S.cands = list.map(role => {
     const o = {};
-    if (role==='doctor') o.dept = pick(DEPT_ORDER.filter(d=>S.depts[d]));
+    if (role==='doctor') { const open = DEPT_ORDER.filter(d => S.depts[d]), free = open.filter(d => doctorsOf(d).length < docCap()); o.dept = pick(free.length ? free : open); }
     o.spd = clamp(rnd(1,3) + (Math.random() < b*.35 ? 1 : 0), 1, 5);
     o.kind = clamp(rnd(1,3) + (Math.random() < b*.35 ? 1 : 0), 1, 5);
     return mkStaff(role, o);
@@ -863,7 +867,7 @@ function cardHTML(id) {
   if (id === 'more') return moreHTML();
   if (isLocked(id)) return lockedHTML(id);
   if (DEPTS[id]) return hdr(DEPTS[id].icon, DEPTS[id].name, `<span class="syms">${availSyms(id).join('')}</span>`) +
-    `<div class="cb room1">${F('desk f-tr','🖥️📋')}${F('f-tl sink','🚰')}${F('f-bl', id === 'obgy' ? '🧺' : '🗑️')}<span class="staffs" data-staff="${id}"></span>${slotHTML()}</div>`;
+    `<div class="cb room1">${F('desk f-tr','🖥️📋')}${F('f-tl sink','🚰')}${F('f-bl', id === 'obgy' ? '🧺' : '🗑️')}<span class="staffs" data-staff="${id}"></span>${doctorsOf(id).map(d => slotHTML().replace('class="slot"', `class="slot" data-doc="${d.id}"`)).join('') || slotHTML()}</div>`;
   switch (id) {
     case 'ent': return hdr('🚪','입구·접수') + `<div class="edoor"></div><div class="cb has-counter">${F('counter','🛎️ 💻 📋')}${F('mat')}<div class="queue" id="entQ"></div><span class="welcome">어서 오세요 💕</span><span class="staffs" data-staff="ent"></span></div>`;
     case 'wait': {
@@ -904,7 +908,7 @@ function renderStaff() {
   const groups = {};
   for (const s of S.staff) { const h = (s.rest > 0 && S.rooms.rest) ? 'rest' : staffHome(s); (groups[h] = groups[h] || []).push(s); }
   mapEl.querySelectorAll('[data-staff]').forEach(el => setH(el, (groups[el.dataset.staff] || []).map(staffBadge).join('')));
-  for (const d of DEPT_ORDER) { const c = cardEl(d); if (c && S.depts[d]) c.classList.toggle('closed', !doctorReady(d)); }
+  for (const d of DEPT_ORDER) if (S.depts[d] && G.slotEls[d]) G.slotEls[d].forEach((el, i) => el.classList.toggle('closed', !slotReady(d, i)));
   const mc = cardEl('more'); if (mc) setH(mc, moreHTML()); // 승급 진행도 실시간 갱신
 }
 
@@ -1131,9 +1135,9 @@ function toWard(p) {
 <script>
 'use strict';
 /* ===================== 진료실 처리 ===================== */
-function treatDur(r) {
+function treatDur(r, i = 0) {
   if (G.tut) return 3;
-  const doc = doctorOf(r);
+  const doc = slotDoctor(r, i) || doctorOf(r);
   let d = 7 / (.5 + .25*doc.spd) / CLINIC_MUL[S.up.clinic];
   if (doc.fat >= 100) d /= .65;
   return d;
@@ -1145,7 +1149,6 @@ function svcDur(r) {
   const ph = pharmacist();
   return ph ? 4 / (.5 + .25*ph.spd) * (ph.fat >= 100 ? 1.5 : 1) : 6;
 }
-const roomReady = r => DEPTS[r] ? doctorReady(r) : true;
 function nextInQueue(r) {
   let best = null;
   // 응급 환자 > 소란 중인 진상(새치기) > 먼저 온 순서
@@ -1182,7 +1185,7 @@ function svcStep(r, i, p) {
       ok = p.dept === r;
     }
     if (!ok) { G.slots[r][i] = null; p.stage = 'reg'; p.target = null; wrongMove(p); toSeat(p); updBub(p); return; }
-    p.phase = 'treat'; p.svc = 0; p.dur = treatDur(r);
+    p.phase = 'treat'; p.svc = 0; p.dur = treatDur(r, i);
     if (p.emerg && !p.saved) { p.saved = true; G.stats.emergOk++; addRep(2); toast('🚑 응급 처치 시작! 원장님 최고예요 ✨', 'lvl'); SFX.combo(); }
     if (G.tut === 2) setTut(3);
     return;
@@ -1190,7 +1193,7 @@ function svcStep(r, i, p) {
   G.slots[r][i] = null;
   if (DEPTS[r]) {
     p.fee += DEPTS[r].fee * (p.urg === 2 ? 2 : 1) * (p.emerg ? 1.5 : 1);
-    work(doctorOf(r), 7);
+    work(slotDoctor(r, i), 7);
     if (p.extra.length) {
       const nx = p.extra.shift();
       p.sym = nx.sym; p.dept = nx.dept; p.shown = nx.sym; p.pat = Math.min(100, p.pat + 15); p.stage = 'reg'; p.target = null;
@@ -1218,7 +1221,7 @@ function updRooms(dt) {
     for (let i = 0; i < arr.length; i++) {
       const p = arr[i];
       if (p) { p.svc += dt; if (p.svc >= p.dur) svcStep(r, i, p); }
-      else if (roomReady(r)) { const q = nextInQueue(r); if (q) enterRoom(r, i, q); }
+      else if (slotReady(r, i)) { const q = nextInQueue(r); if (q) enterRoom(r, i, q); }
     }
   }
   // 서 있는 환자는 빈 의자로
@@ -1228,7 +1231,7 @@ function updRooms(dt) {
 /* ===================== 직원 / 청소 / 인내심 ===================== */
 function isIdle(s) {
   // 응급 환자가 줄 서 있으면 쉬러 가지 않음
-  if (s.role === 'doctor') return !(G.slots[s.dept] && G.slots[s.dept][0]) && !G.patients.some(p => p.emerg && !p.saved && p.stage === 'queued' && p.target === s.dept);
+  if (s.role === 'doctor') return !(G.slots[s.dept] && G.slots[s.dept][doctorsOf(s.dept).indexOf(s)]) && !G.patients.some(p => p.emerg && !p.saved && p.stage === 'queued' && p.target === s.dept);
   if (s.role === 'pharm') return !(G.slots.pharm && G.slots.pharm.some(Boolean));
   return true;
 }
@@ -1559,14 +1562,14 @@ function priceState(own, ownLab, grade, price, blocked) {
 }
 function hireCheck(c) {
   const fee = c.wage*2;
-  if (c.role === 'doctor') return { ok:S.money >= fee, label:`${doctorOf(c.dept) ? '🔄 교체' : '💌 고용'} ${coin(fee)}` };
+  if (c.role === 'doctor') return { ok:S.money >= fee, label:`${doctorsOf(c.dept).length >= docCap() ? '🔄 교체' : '💌 고용'} ${coin(fee)}` };
   if (S.staff.filter(s => s.role === c.role).length >= capOf(c.role)) return { ok:false, label:'자리가 꽉 찼어요' };
   return { ok:S.money >= fee, label:`💌 고용 ${coin(fee)}` };
 }
 function staffCard(s, i, cand) {
   const h = cand ? hireCheck(s) : null;
   const btn = cand ? `<button class="sbuy" data-act="buy:hire:${i}" ${h.ok ? '' : 'disabled'}>${h.label}</button>`
-    : s.role === 'doctor' ? '<button class="sbuy ghost" disabled>🩺 진료과 담당</button>'
+    : s.role === 'doctor' && doctorsOf(s.dept).length < 2 ? '<button class="sbuy ghost" disabled>🩺 진료과 담당</button>'
     : `<button class="sbuy ghost" data-act="buy:fire:${s.id}">👋 보내기</button>`;
   return `<div class="sitem t-${ROLE_TONE[s.role]}${cand && !h.ok ? ' dim' : ''}">
     <span class="stag">${cand ? ROLE[s.role].n : 'Lv.' + s.lvl}</span>
@@ -1609,7 +1612,7 @@ function showShop(tab) {
       <div class="sgrid">${S.staff.map(s => staffCard(s, 0, false)).join('')}</div>
       <div class="ssec">💌 오늘의 지원자 <small>계약금 = 일급 ×2</small></div>
       ${S.cands.length ? `<div class="sgrid">${S.cands.map((c, i) => staffCard(c, i, true)).join('')}</div>` : '<div class="stip">🌙 오늘 지원자는 모두 만났어요. 내일 새 지원자가 와요!</div>'}
-      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 1명<br>😊 친절이 높을수록 환자 하트가 천천히 줄고, 일할수록 레벨 업해요!</div>`;
+      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 ${docCap()}명 (의사 수만큼 진료 의자)<br>😊 친절이 높을수록 환자 하트가 천천히 줄고, 일할수록 레벨 업해요!</div>`;
   }
   openModal(`<div class="shop-head"><div class="awning"></div>
       <div class="shop-title">🛒 말랑 상점</div>
@@ -1641,10 +1644,10 @@ function buy(key) {
   } else if (kind === 'hire') {
     const c = S.cands[+id]; if (!c || !hireCheck(c).ok) return;
     S.money -= c.wage*2;
-    if (c.role === 'doctor') S.staff = S.staff.filter(s => !(s.role === 'doctor' && s.dept === c.dept));
+    if (c.role === 'doctor' && doctorsOf(c.dept).length >= docCap()) { const w = weakestDoctor(c.dept); S.staff = S.staff.filter(s => s !== w); }
     S.staff.push(c); S.cands.splice(+id, 1); msg = `${c.animal} ${staffName(c)} 입사! 잘 부탁해요 💕`;
   } else if (kind === 'fire') {
-    const s = S.staff.find(x => x.id === +id); if (!s || s.role === 'doctor') return;
+    const s = S.staff.find(x => x.id === +id); if (!s || (s.role === 'doctor' && doctorsOf(s.dept).length < 2)) return;
     S.staff = S.staff.filter(x => x !== s); msg = `${s.animal} ${staffNameJo(s,'과','와')} 작별했어요 👋`;
   }
   SFX.buy(); toast(msg); save(); buildMap(); applyLayout(); updateHUD(); showShop(G.shopTab);
@@ -1751,7 +1754,7 @@ function tapRoom(id, c) {
   if (id === 'cash') { const p = G.patients.find(x => x.stage === 'pay'); if (p) pay(p); else SFX.tap(); return; }
   if (isLocked(id) || id === 'more') { lockedInfo(id); return; }
   SFX.tap();
-  if (DEPTS[id]) { const d = doctorOf(id); if (d) toast(staffInfo(d)); }
+  if (DEPTS[id]) { const ds = doctorsOf(id); if (ds.length) toast(ds.map(staffInfo).join('<br>')); }
   else if (id === 'pharm') { const ph = S.staff.find(s => s.role === 'pharm'); toast(ph ? staffInfo(ph) : '💊 약사가 없어서 원장님이 천천히 약을 지어요. 약사를 고용해 봐요!'); }
   else if (id === 'ent') { const n = S.staff.filter(s => s.role === 'nurse'); toast(n.length ? n.map(staffInfo).join('<br>') : '📋 간호사를 고용하면 접수를 자동으로 해 줘요!'); }
   else if (id === 'wait') { const j = S.staff.filter(s => s.role === 'janitor'); toast(j.length ? j.map(staffInfo).join('<br>') : '🧻 쓰레기를 톡! 하면 치울 수 있어요. 청소부가 있으면 자동!'); }
