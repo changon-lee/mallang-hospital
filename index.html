@@ -117,7 +117,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .dirt.gone{animation:poof .4s forwards;pointer-events:none}
 
 /* 환자 */
-.pt{position:relative;width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.15);z-index:2;touch-action:manipulation;cursor:pointer;flex:0 0 auto}
+.pt{position:relative;width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.15);z-index:2;touch-action:none;cursor:grab;flex:0 0 auto}
 .pt-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .pt.arrive .pt-in{animation:arrive .5s}
 .pt-bub{background:#fff;border-radius:9px;padding:0 4px;font-size:calc(var(--pz)*.56);line-height:1.35;box-shadow:0 2px 0 #0001;border:1.5px solid #eadfe8;position:relative;margin-bottom:3px;white-space:nowrap}
@@ -148,9 +148,11 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .pt.shake .pt-body{animation:shakeX .4s}
 .pt.sel .pt-in{animation:bob .6s ease-in-out infinite}
 .pt.sel .pt-body{filter:drop-shadow(0 0 3px #3fae8c) drop-shadow(0 0 2px #fff)}
+.pt.dragging{opacity:.3}
 .pt.bye,.pt.mad{pointer-events:none}
 .pt.bye .pt-in{animation:bye .8s ease-in forwards}
 .pt.mad .pt-in{animation:madOut .9s ease-in forwards}
+.pt.ghost{position:fixed;z-index:100;pointer-events:none;transform:translate(-50%,-75%) scale(1.25);opacity:.95}
 
 /* UI 레이어 */
 #pauseOv{position:fixed;inset:0;background:#fff9eecc;display:flex;align-items:center;justify-content:center;z-index:20;font-size:1.3rem;font-weight:900;flex-direction:column;gap:8px;cursor:pointer;text-align:center}
@@ -588,7 +590,7 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
     <button class="btn mint big" id="tNew">새로하기 ✨</button>
     <button class="btn" id="tSound">🔊 효과음 켜짐</button>
   </div>
-  <p class="t-foot">환자 톡 → 보낼 방 톡 &nbsp;|&nbsp; PC: 스페이스 일시정지 · 1/2/4 배속</p>
+  <p class="t-foot">환자를 끌어서 방에 쏙 · 또는 톡 → 톡 &nbsp;|&nbsp; PC: 스페이스 일시정지 · 1/2/4 배속</p>
 </div>
 <div id="modalRoot"></div>
 <script>
@@ -604,8 +606,9 @@ const DEPTS = {
   den:  { name:'치과',     icon:'🪥', fee:55, price:2000, grade:1, syms:[['🦷',1,'이 아픔']] },
   skin: { name:'피부과',   icon:'🧴', fee:50, price:3200, grade:2, syms:[['🔴',1,'두드러기']] },
   obgy: { name:'산부인과', icon:'👶', fee:60, price:4200, grade:2, syms:[['🤰',1,'임신 검진'],['🍼',1,'산후 검진']] },
-  ear:  { name:'이비인후과', icon:'👂', fee:65, price:5200, grade:3, syms:[['👂',1,'귀 아픔'],['😮‍💨',1,'코막힘']] },
-  neu:  { name:'신경과',   icon:'🧠', fee:75, price:6500, grade:3, syms:[['🤕',1,'두통'],['😵‍💫',1,'어지럼']] },
+  ear:  { name:'이비인후과', icon:'👂', fee:65, price:5200, grade:3, syms:[['👂',1,'귀 아픔'],['👃',1,'코막힘']] },
+  // 얼굴 이모티콘은 내과(🤒🤧🤢)만 — 다른 과는 헷갈리지 않게 얼굴이 아닌 모양
+  neu:  { name:'신경과',   icon:'🧠', fee:75, price:6500, grade:3, syms:[['💥',1,'두통'],['🌀',1,'어지럼']] },
 };
 const DEPT_ORDER = ['int','ort','eye','den','skin','obgy','ear','neu'];
 const ROOMS = {
@@ -644,7 +647,7 @@ const ROLE = {
   janitor:{ t:'청소부', b:'🧹', n:'청소부', desc:'대기실 쓰레기를 치워요 · 위생 점검 대비' },
   cashier:{ t:'수납 간호사', b:'💳', n:'수납 간호사', desc:'수납 줄의 환자를 자동으로 계산해요' },
   pnurse: { t:'약국 안내 간호사', b:'🧭', n:'약국 안내', desc:'진료 끝난 💊 환자를 약국 줄로 안내해요' },
-  inurse: { t:'주사 안내 간호사', b:'🩹', n:'주사 안내', desc:'진료 끝난 💉 환자를 주사실로 안내해요' },
+  inurse: { t:'주사 안내 간호사', b:'💉', n:'주사 안내', desc:'진료 끝난 💉 환자를 주사실로 안내해요' },
 };
 // 이 등급부터 고용 가능
 const ROLE_GRADE = { cashier:1, pnurse:2, inurse:3 };
@@ -1365,7 +1368,7 @@ function clearTargets() { mapEl.classList.remove('selecting'); mapEl.querySelect
 let selHinted = false;
 function select(p) {
   deselect(); G.sel = p; p.el.classList.add('sel'); markTargets(p);
-  if (!selHinted && !G.tut) { selHinted = true; toast('👉 이제 보낼 곳(초록 테두리 방)을 톡!'); }
+  if (!selHinted && !G.tut) { selHinted = true; toast('👉 이제 보낼 곳(초록 테두리 방)을 톡! 끌어다 놓아도 돼요'); }
 }
 function deselect() { if (G && G.sel) { G.sel.el.classList.remove('sel'); G.sel = null; } clearTargets(); }
 function lockedInfo(id) {
@@ -1602,7 +1605,7 @@ function setTut(n) {
   const doc = doctorOf('int');
   switch (n) {
     case 1: coach('원장님, 첫 환자가 왔어요! 🐰<br>입구의 환자를 <b>톡</b> 눌러서 <b>접수</b>해 주세요 👆', skip); hl('ent'); break;
-    case 2: coach('말풍선에 <b>🤒 열</b>이 보이죠? 열은 <b>🩺 내과</b>예요!<br><b>환자를 톡</b> 한 다음 <b>내과를 톡</b>!<br><small>진료과 카드 오른쪽 위에 받는 증상이 적혀 있어요</small>', skip); hl('int'); break;
+    case 2: coach('말풍선에 <b>🤒 열</b>이 보이죠? 열은 <b>🩺 내과</b>예요!<br>환자를 <b>끌어서 내과에 쏙!</b> 또는 <b>환자 톡 → 내과 톡</b>!<br><small>진료과 카드 오른쪽 위에 받는 증상이 적혀 있어요</small>', skip); hl('int'); break;
     case 3: coach(`${doc ? staffNameJo(doc,'이','가') : '의사 선생님이'} 진료 중이에요… 🩺<br><small>진료받는 동안엔 하트가 줄지 않아요</small>`); break;
     case 4: coach('진료 끝! 환자 머리 위에 <b>💊</b>가 떴어요.<br><b>💊 약국</b>으로 안내해 주세요!<br><small>💉는 주사실, 🛏️는 입원실이에요. 틀리면 하트가 줄어요</small>', skip); hl('pharm'); break;
     case 5: coach('약 받는 중이에요 💊 조금만 기다려요~'); break;
@@ -2003,7 +2006,7 @@ function showGuide() {
     <div class="box"><b>병원 운영</b><br>
       🩺 의사를 여러 명 뽑으면 진료 의자가 늘어나 동시에 진료해요 (등급이 오를수록 진료과당 정원 ↑)<br>
       💳 수납 간호사: 병원 등급부터 고용, 수납을 자동으로 해 줘요<br>
-      🧭 약국 안내 간호사(종합병원부터) · 🩹 주사 안내 간호사(대학병원부터): 진료 끝난 환자를 알아서 보내요<br>
+      🧭 약국 안내 간호사(종합병원부터) · 💉 주사 안내 간호사(대학병원부터): 진료 끝난 환자를 알아서 보내요<br>
       ⚡ 간호사가 느리면 환자가 밀려요(📥). 밀린 환자는 원장님이 직접 처리해 주세요<br>
       👥 직원 명부: 위쪽 👥 버튼으로 직원을 보고 ✏️ 이름을 바꿀 수 있어요<br>
       📚 연수: 직원 능력치를 올려요 (일하면서 크는 건 아주 천천히) · 📣 홍보: 종합병원부터<br>
@@ -2012,7 +2015,7 @@ function showGuide() {
     <div class="box"><b>⭐ 평판</b><br>
       ⭐3.0 진료비 +10% · ⭐4.0 +25% (VIP ↑) · ⭐4.5 +40% · ⭐4.8 +60%<br>
       평판이 높을수록 더 오르기 어렵고, 콤보가 끊기면 조금 떨어져요</div>
-    <div class="box"><b>조작</b><br>톡: 접수 · 수납 · 쓰레기 🧻 청소<br>안내: <b>환자 톡 → 보낼 방 톡</b> (환자를 다시 톡 하면 선택 취소)<br>스페이스: 일시정지 · 1/2/4: 배속</div>
+    <div class="box"><b>조작</b><br>톡: 접수 · 수납 · 쓰레기 🧻 청소<br>안내: <b>환자를 끌어서 방에 놓기</b> 또는 <b>환자 톡 → 보낼 방 톡</b> (다시 톡 하면 선택 취소)<br>스페이스: 일시정지 · 1/2/4: 배속</div>
     <div class="brow"><button class="btn pri" data-act="guideClose">알겠어요!</button></div>`);
 }
 const ROSTER_ORDER = ['doctor','nurse','cashier','pnurse','inurse','pharm','janitor'];
@@ -2134,20 +2137,63 @@ function tapRoom(id, c) {
   SFX.tap();
   if (DEPTS[id]) { const ds = doctorsOf(id); if (ds.length) toast(ds.map(staffInfo).join('<br>')); }
   else if (id === 'pharm') { const l = S.staff.filter(s => s.role === 'pharm' || s.role === 'pnurse'); toast(l.length ? l.map(staffInfo).join('<br>') : '💊 약사가 없어서 원장님이 천천히 약을 지어요. 약사를 고용해 봐요!'); }
-  else if (id === 'inj') { const l = S.staff.filter(s => s.role === 'inurse'); toast(l.length ? l.map(staffInfo).join('<br>') : S.grade >= 3 ? '🩹 주사 안내 간호사를 고용하면 💉 환자를 알아서 안내해요!' : '🩹 대학병원이 되면 주사 안내 간호사를 고용할 수 있어요!'); }
+  else if (id === 'inj') { const l = S.staff.filter(s => s.role === 'inurse'); toast(l.length ? l.map(staffInfo).join('<br>') : S.grade >= 3 ? '💉 주사 안내 간호사를 고용하면 💉 환자를 알아서 안내해요!' : '💉 대학병원이 되면 주사 안내 간호사를 고용할 수 있어요!'); }
   else if (id === 'ent') { const n = S.staff.filter(s => s.role === 'nurse'); toast(n.length ? n.map(staffInfo).join('<br>') : '📋 간호사를 고용하면 접수를 자동으로 해 줘요!'); }
   else if (id === 'wait') { const j = S.staff.filter(s => s.role === 'janitor'); toast(j.length ? j.map(staffInfo).join('<br>') : '🧻 쓰레기를 톡! 하면 치울 수 있어요. 청소부가 있으면 자동!'); }
 }
-// 안내는 톡 → 톡: 환자를 톡 해서 고르고, 보낼 방을 톡
+// 안내는 두 가지 다 됨: 환자를 끌어다 방에 놓기 · 환자 톡 → 방 톡
+let noClickUntil = 0; // 끌어 놓은 직후 따라오는 click은 무시
 mapEl.addEventListener('click', e => {
   if (G && G.layEdit) { const c = e.target.closest('.card'); if (c) layTap(c.dataset.room); return; }
+  if (e.target.closest('.pt') || performance.now() < noClickUntil) return; // 환자 톡은 pointer 이벤트에서 처리
   if (!canAct()) return;
-  const pe = e.target.closest('.pt');
-  if (pe) { const p = G.patients.find(x => x.id === +pe.dataset.id); if (p) tapPatient(p); return; }
   const d = e.target.closest('.dirt'); if (d) { cleanDirt(d, false); return; }
   const c = e.target.closest('.card'); if (!c) { deselect(); return; }
   tapRoom(c.dataset.room, c);
 });
+let drag = null;
+const cardAt = (x, y) => { const el = document.elementFromPoint(x, y); return el ? el.closest('#map .card') : null; };
+mapEl.addEventListener('pointerdown', e => {
+  if (G && G.layEdit) return;
+  const pe = e.target.closest('.pt'); if (!pe) return;
+  const p = G.patients.find(x => x.id === +pe.dataset.id); if (!p) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+  drag = { p, x0:e.clientX, y0:e.clientY, moved:false, ghost:null, hover:null, id:e.pointerId };
+});
+addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (!drag.moved) {
+    if (dx*dx + dy*dy < 64) return; // 8px 넘게 움직여야 끌기 (그 전엔 톡)
+    if (!canAct() || !['reg','queued','next'].includes(drag.p.stage)) return;
+    drag.moved = true;
+    deselect(); // 톡으로 골라 둔 다른 환자가 있으면 해제하고 끄는 환자로
+    const g = drag.p.el.cloneNode(true); g.classList.add('ghost'); g.classList.remove('sel', 'arrive');
+    g.style.transform = ''; g.style.transition = ''; document.body.appendChild(g); drag.ghost = g;
+    drag.p.el.classList.add('dragging'); markTargets(drag.p);
+  }
+  e.preventDefault();
+  drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
+  const c = cardAt(e.clientX, e.clientY);
+  if (c !== drag.hover) { if (drag.hover) drag.hover.classList.remove('hover'); drag.hover = c; if (c) c.classList.add('hover'); }
+}, { passive:false });
+function endDrag(d) {
+  if (d.ghost) d.ghost.remove();
+  if (d.hover) d.hover.classList.remove('hover');
+  d.p.el.classList.remove('dragging');
+  deselect();
+}
+addEventListener('pointerup', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (d.moved) {
+    endDrag(d); noClickUntil = performance.now() + 400;
+    const c = cardAt(e.clientX, e.clientY);
+    if (c && d.p.stage !== 'gone' && canAct()) { bounceEl(c); sendTo(d.p, c.dataset.room); }
+  } else tapPatient(d.p);
+});
+addEventListener('pointercancel', () => { if (drag) { if (drag.moved) endDrag(drag); drag = null; } });
 
 document.querySelectorAll('.speed button').forEach(b => b.addEventListener('click', () => { if (G && G.mode === 'play') { setSpeed(+b.dataset.sp); SFX.tap(); } }));
 $('#pauseOv').addEventListener('click', () => setSpeed(G.resume || 1));

@@ -233,13 +233,34 @@ def test_tap_patient_then_tap_room(page_at):
     assert js(page, f"(G.patients.find(p=>p.id==={pid})||{{}}).target") == 'int' or js(page, f"G.slots.int[0] && G.slots.int[0].id") == pid
 
 
-def test_drag_no_longer_moves_patients(page_at):
+def drag_to(page, pid, room):
+    a = page.locator(f'.pt[data-id="{pid}"]').bounding_box(); b = page.locator(f'.card[data-room={room}]').bounding_box()
+    page.mouse.move(a['x'] + a['width'] / 2, a['y'] + a['height'] / 2); page.mouse.down()
+    page.mouse.move(b['x'] + b['width'] / 2, b['y'] + b['height'] / 2, steps=8)
+    ghost = page.locator('.pt.ghost').count()
+    page.mouse.up()
+    return ghost
+
+
+def test_drag_and_drop_also_routes(page_at):
     page = page_at((430, 932)); boot(page)
     pid = spawn_patient(page, sym='🤒', urg=0)
     js(page, f"register(G.patients.find(p=>p.id==={pid})); setSpeed(1)")
     page.wait_for_timeout(900)
-    a = page.locator(f'.pt[data-id="{pid}"]').bounding_box(); b = page.locator('.card[data-room=int]').bounding_box()
-    page.mouse.move(a['x'] + a['width'] / 2, a['y'] + a['height'] / 2); page.mouse.down()
-    page.mouse.move(b['x'] + 20, b['y'] + 30, steps=8); page.mouse.up()
+    assert drag_to(page, pid, 'int') == 1
+    page.wait_for_timeout(100)
+    assert js(page, f"(G.patients.find(p=>p.id==={pid})||{{}}).target") == 'int' or js(page, f"G.slots.int[0] && G.slots.int[0].id") == pid
     assert page.locator('.pt.ghost').count() == 0
-    assert js(page, f"G.patients.find(p=>p.id==={pid}).stage") == 'reg'
+    assert js(page, "G.sel") is None
+
+
+def test_tap_then_drag_another_patient(page_at):
+    # 하나를 톡으로 고른 상태에서 다른 환자를 끌어도 끈 환자가 가야 함
+    page = page_at((430, 932)); boot(page)
+    a = spawn_patient(page, sym='🤒', urg=0); b = spawn_patient(page, sym='🤒', urg=0)
+    js(page, f"register(G.patients.find(p=>p.id==={a})); register(G.patients.find(p=>p.id==={b})); setSpeed(1)")
+    page.wait_for_timeout(900)
+    page.click(f'.pt[data-id="{a}"]')
+    drag_to(page, b, 'int'); page.wait_for_timeout(100)
+    assert js(page, f"G.patients.find(p=>p.id==={a}).stage") == 'reg'
+    assert js(page, f"(G.patients.find(p=>p.id==={b})||{{}}).target") == 'int' or js(page, f"G.slots.int[0] && G.slots.int[0].id") == b

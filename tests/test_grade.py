@@ -26,8 +26,19 @@ def test_new_depts_buyable_in_order(page_at):
     assert js(page, "!!S.depts.neu") is False
     js(page, "buy('dept:ear'); buy('dept:neu')")
     assert js(page, "!!S.depts.ear && !!S.depts.neu") is True
-    assert js(page, "symDept('🤕')") == 'neu'
-    assert js(page, "symDept('😮‍💨')") == 'ear'
+    assert js(page, "symDept('💥')") == 'neu' and js(page, "symDept('🌀')") == 'neu'
+    assert js(page, "symDept('👃')") == 'ear' and js(page, "symDept('👂')") == 'ear'
+
+
+def test_only_internal_medicine_uses_face_symptoms(page_at):
+    # 이비인후과·신경과가 내과(🤒🤧🤢)와 헷갈리지 않게: 얼굴 이모티콘은 내과만
+    page = page_at(); boot(page)
+    faces = js(page, r"""DEPT_ORDER.filter(d => d !== 'int').flatMap(d => DEPTS[d].syms.map(s => s[0]))
+      .filter(e => /[\u{1F600}-\u{1F64F}\u{1F910}-\u{1F92F}\u{1F970}-\u{1F97A}]/u.test(e))""")
+    assert faces == []
+    syms = js(page, "DEPT_ORDER.flatMap(d => DEPTS[d].syms.map(s => s[0]))")
+    assert len(syms) == len(set(syms))
+    assert js(page, "ROLE.inurse.b") not in syms
 
 
 def test_new_depts_locked_below_university(page_at):
