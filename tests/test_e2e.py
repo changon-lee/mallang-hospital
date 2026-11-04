@@ -17,7 +17,8 @@ def test_auto_play_three_days(page_at):
          depts={'ort': True, 'eye': True, 'den': True, 'skin': True, 'obgy': True, 'ear': True, 'neu': True},
          rooms={'exam': True, 'inj': True, 'rest': True, 'surg': True},
          staff_js="for (const d of ['ort','eye','den','skin','obgy','ear','neu']) S.staff.push(mkStaff('doctor',{dept:d}));"
-                  "S.staff.push(mkStaff('nurse')); S.staff.push(mkStaff('cashier')); S.staff.push(mkStaff('pharm')); S.staff.push(mkStaff('janitor'))")
+                  "S.staff.push(mkStaff('nurse')); S.staff.push(mkStaff('cashier')); S.staff.push(mkStaff('pharm')); S.staff.push(mkStaff('janitor'));"
+                  "S.staff.push(mkStaff('pnurse',{spd:1,kind:1})); S.staff.push(mkStaff('inurse',{spd:5,kind:1}))")
     js(page, "G.mode='prep'; act('start'); setSpeed(0)")
     for _ in range(3):
         js(page, AUTO)

@@ -13,10 +13,11 @@ def test_training_cost_and_effect(page_at):
     assert js(page, "S.staff[0].kind") == 3 and js(page, "S.staff[0].tr") == 2
 
 
-def test_training_locked_below_general(page_at):
+def test_training_open_below_general(page_at):
+    # 2차 피드백: 자연 성장이 느려진 대신 연수는 처음부터 가능
     page = page_at(); boot(page, grade=1, money=10000)
-    js(page, "G.mode='prep'; buy('train:' + S.staff[0].id + ':spd')")
-    assert js(page, "S.money") == 10000
+    js(page, "S.staff[0].spd = 2; G.mode='prep'; buy('train:' + S.staff[0].id + ':spd')")
+    assert js(page, "S.money") == 10000 - 250
 
 
 def test_training_caps_at_5_and_needs_money(page_at):
@@ -31,9 +32,9 @@ def test_training_buttons_in_staff_tab(page_at):
     page = page_at(); boot(page, grade=2, money=10000)
     js(page, "G.mode='prep'; showShop('staff')")
     assert page.locator('[data-act^="buy:train:"]').count() == 2
-    page2 = page_at(); boot(page2, grade=1)
+    page2 = page_at(); boot(page2, grade=0)
     js(page2, "G.mode='prep'; showShop('staff')")
-    assert page2.locator('[data-act^="buy:train:"]').count() == 0
+    assert page2.locator('[data-act^="buy:train:"]').count() == 2
 
 
 def test_ad_once_per_day_and_faster_spawns(page_at):

@@ -31,6 +31,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .chip.money b{color:#d08a1c}
 .chip.money.neg b{color:#d2557a}
 .chip.bump{animation:boing .35s}
+.repb{font-size:.72em;color:#2f9a74;font-weight:900}.repb:empty{display:none}
 .hud-mid{display:flex;align-items:center;gap:6px;flex:1;min-width:170px}
 .clock{display:flex;align-items:center;gap:6px;flex:1;max-width:280px;font-weight:800;font-variant-numeric:tabular-nums}
 .tbar{flex:1;height:10px;background:#f1e6d6;border-radius:99px;overflow:hidden}
@@ -116,7 +117,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .dirt.gone{animation:poof .4s forwards;pointer-events:none}
 
 /* 환자 */
-.pt{position:relative;width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.15);z-index:2;touch-action:none;cursor:grab;flex:0 0 auto}
+.pt{position:relative;width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.15);z-index:2;touch-action:manipulation;cursor:pointer;flex:0 0 auto}
 .pt-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 .pt.arrive .pt-in{animation:arrive .5s}
 .pt-bub{background:#fff;border-radius:9px;padding:0 4px;font-size:calc(var(--pz)*.56);line-height:1.35;box-shadow:0 2px 0 #0001;border:1.5px solid #eadfe8;position:relative;margin-bottom:3px;white-space:nowrap}
@@ -147,11 +148,9 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .pt.shake .pt-body{animation:shakeX .4s}
 .pt.sel .pt-in{animation:bob .6s ease-in-out infinite}
 .pt.sel .pt-body{filter:drop-shadow(0 0 3px #3fae8c) drop-shadow(0 0 2px #fff)}
-.pt.dragging{opacity:.3}
 .pt.bye,.pt.mad{pointer-events:none}
 .pt.bye .pt-in{animation:bye .8s ease-in forwards}
 .pt.mad .pt-in{animation:madOut .9s ease-in forwards}
-.pt.ghost{position:fixed;z-index:100;pointer-events:none;transform:translate(-50%,-75%) scale(1.25);opacity:.95}
 
 /* UI 레이어 */
 #pauseOv{position:fixed;inset:0;background:#fff9eecc;display:flex;align-items:center;justify-content:center;z-index:20;font-size:1.3rem;font-weight:900;flex-direction:column;gap:8px;cursor:pointer;text-align:center}
@@ -311,7 +310,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .c-rest{background:repeating-linear-gradient(90deg,#e7c49a 0 34px,#d4ad80 34px 35px),#e7c49a}
 .c-more,.card.locked{background:radial-gradient(#d3ccc1 1px,transparent 1.6px) 0 0/9px 9px,#e8e3db;border-style:solid;border-color:#ddd3c6;color:#8f8478}
 /* 가구 */
-.furn{position:absolute;pointer-events:none;z-index:0;line-height:1;font-size:calc(var(--pz)*.7)}
+.furn{position:absolute;pointer-events:none;z-index:0;line-height:1.3;font-size:calc(var(--pz)*.7)}
 .f-tl{top:3px;left:4px}.f-tr{top:3px;right:4px}.f-bl{bottom:3px;left:4px}.f-br{bottom:3px;right:4px}
 .f-t{top:2px;left:50%;transform:translateX(-50%)}.f-b{bottom:2px;left:50%;transform:translateX(-50%)}.f-r{right:3px;top:50%;transform:translateY(-50%)}
 .desk{padding:4px 6px;background:linear-gradient(#ddb990,#c99f74);border-radius:5px;box-shadow:0 3px 0 #a9835c;font-size:calc(var(--pz)*.5);letter-spacing:2px}
@@ -489,7 +488,10 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
 .queue.pq{flex-wrap:nowrap}
 #mapWrap.scrollfit{overflow:auto}
 #mapWrap.scrollfit #map .card,#mapWrap.scrollfit #map .cb{overflow:visible}
-#map.measuring .queue > .pt,#map.measuring .furn,#map.measuring .lk,#map.measuring .c-dept .staffs{display:none}
+/* 환자는 의자·침대·대기 줄의 고정 자리에 서므로 잴 때 빼도 됨 (걷기·등장 애니메이션 변형이 측정을 망치지 않게) */
+#map.measuring .pt,#map.measuring .furn,#map.measuring .lk,#map.measuring .backlog,
+#map.measuring .card:not(.c-rest) .staffs{display:none!important} /* 구석에 떠 있는 직원 배지도 제외 (휴게실만 자리 차지) */
+.c-ent .staffs,.c-cash .staffs{right:5px}
 .room1{flex-wrap:wrap;align-content:center;gap:4px}
 /* 의자·환자 비율을 조금 납작하게, 진료과 의자는 3개가 한 줄에 들어가게 */
 .slot{width:calc(var(--pz)*1.55);height:calc(var(--pz)*2.3);padding-bottom:7px}
@@ -532,6 +534,14 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
   #toasts{position:absolute;left:6px;right:6px;top:0;bottom:0;height:auto;margin:0;z-index:40;min-width:0}
   #toasts .toast{left:auto;right:0;max-width:100%}
 }
+/* 밀림 표시 · 방 배치 · 주사 안내 간호사 자리 */
+.backlog{flex:0 0 auto;margin-left:3px;font-size:.92em;font-weight:900;white-space:nowrap;background:#fff1c2;border:1.5px solid #f3c64f;border-radius:99px;padding:0 5px;color:#a86d0a;line-height:1.25}
+#map .card.laysel{outline:4px solid #f0a35e;outline-offset:-6px;border-radius:18px}
+#map.selecting .card.laysel ~ .card.target,#map.selecting .card.target:has(~ .card.laysel){outline:3px dashed #6cc6a5;outline-offset:-6px;border-radius:18px}
+#coach.lay{padding:8px 12px;bottom:8px}#coach.lay .who{width:40px;height:40px;font-size:1.6rem}#coach.lay .txt{font-size:.92rem;line-height:1.4}
+#coach.lay .txt > b:first-child,#coach.lay .txt > b:first-child + br{display:none}
+#map .card.laysel{animation:none}
+.c-inj .staffs{position:absolute;right:2px;bottom:0;z-index:3}
 @media (max-height:500px){
   .slot,.c-pharm .slot{height:calc(var(--pz)*2.1);padding-bottom:5px}
   .pt{height:calc(var(--pz)*1.95)}
@@ -552,7 +562,7 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
     </div>
     <div class="hud-r">
       <span class="chip money" id="hMoneyC">💰 <b id="hMoney">0</b></span>
-      <span class="chip" title="평판">⭐ <b id="hRep">0</b></span>
+      <span class="chip" title="평판">⭐ <b id="hRep">0</b><small id="hRepB" class="repb"></small></span>
       <span class="chip" title="목표 별">🌟 <b id="hStars">0</b></span>
       <span class="saved" id="hSave">💾</span>
       <div class="speed"><button data-sp="0" title="일시정지 (스페이스)">⏸</button><button data-sp="1" class="on" title="1배속">1x</button><button data-sp="2" title="2배속">2x</button><button data-sp="4" title="4배속">4x</button></div>
@@ -577,7 +587,7 @@ body{background-image:radial-gradient(circle at 8% 10%,#fff3df 0,transparent 35%
     <button class="btn mint big" id="tNew">새로하기 ✨</button>
     <button class="btn" id="tSound">🔊 효과음 켜짐</button>
   </div>
-  <p class="t-foot">PC: 클릭 · 드래그 · 스페이스 일시정지 &nbsp;|&nbsp; 모바일: 톡 · 끌기</p>
+  <p class="t-foot">환자 톡 → 보낼 방 톡 &nbsp;|&nbsp; PC: 스페이스 일시정지 · 1/2/4 배속</p>
 </div>
 <div id="modalRoot"></div>
 <script>
@@ -613,8 +623,9 @@ const CLINIC_MUL = [1,1.25,1.5,1.8], CHAIRS = [4,6,8,10];
 const UPS = {
   clinic:{ name:'진료실 장비', icon:'⚙️', prices:[400,900,1800], desc:l=>`진료 속도 ×${CLINIC_MUL[l]}` },
   wait:  { name:'대기실 의자', icon:'🪑', prices:[250,600,1200], desc:l=>`의자 ${CHAIRS[l]}개` },
-  ward:  { name:'입원실 침대', icon:'🛏️', prices:[500,1100,2000], desc:l=>`침대 ${l+1}개` },
+  ward:  { name:'입원실 침대', icon:'🛏️', prices:[600,1300,2400], desc:l=>`침대 ${2*(l+1)}개` },
 };
+const bedCount = () => 2 * (1 + S.up.ward); // 기본 2개, 단계마다 2개씩
 const DECOS = {
   plant:{ name:'화분',   icon:'🪴', price:120,  grade:0, eff:.07 },
   water:{ name:'정수기', icon:'🚰', price:250,  grade:0, eff:.07 },
@@ -631,7 +642,18 @@ const ROLE = {
   pharm:  { t:'약사',   b:'💊', n:'약사',   desc:'약국 처리가 빨라져요' },
   janitor:{ t:'청소부', b:'🧹', n:'청소부', desc:'대기실 쓰레기를 치워요 · 위생 점검 대비' },
   cashier:{ t:'수납 간호사', b:'💳', n:'수납 간호사', desc:'수납 줄의 환자를 자동으로 계산해요' },
+  pnurse: { t:'약국 안내 간호사', b:'🧭', n:'약국 안내', desc:'진료 끝난 💊 환자를 약국 줄로 안내해요' },
+  inurse: { t:'주사 안내 간호사', b:'🩹', n:'주사 안내', desc:'진료 끝난 💉 환자를 주사실로 안내해요' },
 };
+// 이 등급부터 고용 가능
+const ROLE_GRADE = { cashier:1, pnurse:2, inurse:3 };
+// 평판이 높을수록 진료비 보너스 (⭐ = 평판/20)
+const REP_TIERS = [
+  { rep:60, mul:1.10, icon:'🌱', name:'입소문 난 병원' },
+  { rep:80, mul:1.25, icon:'🌷', name:'인기 병원', vip:1.3 },
+  { rep:90, mul:1.40, icon:'🏅', name:'명의 병원', vip:1.3 },
+  { rep:96, mul:1.60, icon:'👑', name:'전설의 병원', vip:1.5 },
+];
 const DEST = { pharm:'💊', inj:'💉', ward:'🛏️', surg:'⚕️' };
 const EVENTS = {
   flu:     { icon:'🤧', name:'독감 시즌', desc:'오늘은 🤧 감기 환자가 엄청 많이 와요! 내과를 바쁘게 돌려 봐요.' },
@@ -648,7 +670,7 @@ const LAYOUT = {
   ],
   narrow: [
     ['ent wait wait','cash wait wait','int ort pharm','exam inj pharm','ward ward more'],
-    ['ent wait wait','cash wait wait','int ort eye','den exam pharm','inj rest pharm','ward ward more'],
+    ['ent wait wait','cash wait wait','int ort eye','den exam pharm','inj rest pharm','ward ward more','ward ward more'],
     ['ent wait wait','cash wait wait','int ort eye','den skin obgy','exam inj pharm','ward ward pharm','ward ward rest'],
     ['ent wait wait','cash wait wait','int ort eye','den skin obgy','ear neu exam','inj surg pharm','ward ward pharm','ward ward rest'],
   ],
@@ -709,16 +731,17 @@ let G = null; // 하루 동안의 실행 상태
 function newState() {
   const s = { v:2, day:1, money:300, rep:30, stars:0, grade:0, total:0,
     depts:{int:true}, rooms:{exam:false,inj:false,rest:false,surg:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
-    staff:[], cands:[], candDay:0, tut:false, nextId:1 };
+    staff:[], cands:[], candDay:0, tut:false, nextId:1, lay:{} };
   S = s;
   s.staff.push(mkStaff('doctor', {dept:'int', animal:'🐻', spd:2, kind:2}));
   return s;
 }
 function newG() {
   return { mode:'idle', speed:1, modal:false, t:0, spawnT:2, pid:0, patients:[], dirt:[], dirtT:16,
-    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0},
+    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0},
     goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
-    entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0 };
+    entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0,
+    layEdit:null, blWarn:{} };
 }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
@@ -729,7 +752,8 @@ function load() {
 }
 
 /* ===================== 직원 ===================== */
-const wageOf = s => 12 + (s.spd + s.kind)*7 + (s.lvl-1)*3;
+// 능력치 합이 높을수록 일급이 가파르게 오름 (합 2: 24 · 6: 92 · 10: 210)
+const wageOf = s => { const t = s.spd + s.kind; return Math.round(10 + t*4 + t*t*1.6) + ((s.lvl || 1) - 1)*3; };
 function mkStaff(role, o={}) {
   const s = { id:S.nextId++, role, dept:o.dept||null, animal:o.animal||pick(ANIMALS),
     spd:o.spd||rnd(1,3), kind:o.kind||rnd(1,3), lvl:1, xp:0, fat:0, rest:0, t:0, tr:0, name:null };
@@ -752,38 +776,60 @@ const slotDoctor = (r, i) => doctorsOf(r)[i];
 const slotReady = (r, i) => { if (!DEPTS[r]) return true; const s = slotDoctor(r, i); return !!s && !(s.rest > 0); };
 const weakestDoctor = d => doctorsOf(d).reduce((w, s) => (!w || s.spd + s.kind < w.spd + w.kind) ? s : w, null);
 const pharmacist = () => S.staff.find(s => s.role==='pharm' && !(s.rest > 0));
-const capOf = role => role==='doctor' ? docCap() : role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : role==='cashier' ? [0,1,2,2][S.grade] : 1;
+const capOf = role => role==='doctor' ? docCap() : role==='nurse' ? 1+S.grade : role==='janitor' ? (S.grade>=2?2:1) : role==='cashier' ? [0,1,2,2][S.grade]
+  : role==='pnurse' ? [0,0,1,2][S.grade] : role==='inurse' ? [0,0,0,1][S.grade] : 1;
+// 안내·접수·수납 간호사가 환자 한 명을 처리하는 간격 (⚡1: 6.3초 → ⚡5: 1.5초) — 느리면 밀림
+const navInt = s => clamp(7.5 - s.spd*1.2, 1.2, 8);
 const staffInfo = s => `${s.animal} ${staffName(s)} Lv.${s.lvl} · ⚡${s.spd} 😊${s.kind} · 피로 ${Math.round(s.fat)}%${s.rest>0?' (휴식 중 ☕)':''}`;
 
+// 일하면서 크는 건 천천히: 경험치 요구량이 크고, 능력치는 짝수 레벨에만 +1 (빨리 키우려면 📚 연수)
+const xpNeed = lvl => 10 + lvl*10;
 function work(s, f) {
   if (!s) return;
   s.fat = Math.min(100, s.fat + f);
   s.xp++;
-  if (s.lvl < 10 && s.xp >= 4 + s.lvl*4) {
+  if (s.lvl < 10 && s.xp >= xpNeed(s.lvl)) {
     s.xp = 0; s.lvl++;
     let up = '';
-    if (s.spd < 5 && (s.spd <= s.kind || s.kind >= 5)) { s.spd++; up = '⚡속도 +1'; }
-    else if (s.kind < 5) { s.kind++; up = '😊친절 +1'; }
+    if (s.lvl % 2 === 0) {
+      if (s.spd < 5 && (s.spd <= s.kind || s.kind >= 5)) { s.spd++; up = '⚡속도 +1'; }
+      else if (s.kind < 5) { s.kind++; up = '😊친절 +1'; }
+    }
     s.wage = wageOf(s);
     toast(`⬆️ ${staffName(s)} 레벨 업! Lv.${s.lvl} ${up}`, 'lvl'); SFX.lvl();
   }
 }
+// 지원자 실력: 보통(1~3) · 숙련(2~4) · 에이스(3~5, 합 7 이상). 등급·날짜가 오를수록 실력자가 많이 옴
+function candStats() {
+  const ace = .06 + .06*S.grade + .08*ramp(4, 12), good = .28 + .05*S.grade, r = Math.random();
+  if (r < ace) { const a = [rnd(3,5), rnd(3,5)]; if (a[0] + a[1] < 7) a[a[0] < a[1] ? 0 : 1]++; return a; }
+  if (r < ace + good) return [rnd(2,4), rnd(2,4)];
+  return [rnd(1,3), rnd(1,3)];
+}
 function genCands() {
   const roles = ['nurse','doctor','pharm','janitor'];
   if (S.grade >= 1) roles.push('cashier');
+  if (S.grade >= 2) roles.push('pnurse');
+  if (S.grade >= 3) roles.push('inurse');
+  const has = r => S.staff.some(s => s.role === r);
   const list = [];
-  if (!S.staff.some(s=>s.role==='nurse')) list.push('nurse');
-  if (S.day >= 3 && !S.staff.some(s=>s.role==='janitor')) list.push('janitor');
-  if (S.grade >= 1 && !S.staff.some(s=>s.role==='cashier')) list.push('cashier');
-  while (list.length < 3) list.push(pick(roles));
-  const b = S.grade;
+  if (!has('nurse')) list.push('nurse');
+  if (S.day >= 3 && !has('janitor')) list.push('janitor');
+  if (S.grade >= 1 && !has('cashier')) list.push('cashier');
+  if (S.grade >= 2 && !has('pnurse')) list.push('pnurse');
+  if (S.grade >= 3 && !has('inurse')) list.push('inurse');
+  const n = S.grade >= 2 ? 4 : 3;
+  while (list.length < n) list.push(pick(roles));
   S.cands = list.map(role => {
     const o = {};
     if (role==='doctor') { const open = DEPT_ORDER.filter(d => S.depts[d]), free = open.filter(d => doctorsOf(d).length < docCap()); o.dept = pick(free.length ? free : open); }
-    o.spd = clamp(rnd(1,3) + (Math.random() < b*.35 ? 1 : 0), 1, 5);
-    o.kind = clamp(rnd(1,3) + (Math.random() < b*.35 ? 1 : 0), 1, 5);
+    [o.spd, o.kind] = candStats();
     return mkStaff(role, o);
   });
+  // 3일차부터는 매일 쓸 만한 지원자가 적어도 한 명
+  if (S.day >= 3 && !S.cands.some(c => c.spd + c.kind >= 6)) {
+    const c = pick(S.cands); c.spd = rnd(3,4); c.kind = rnd(3,4); c.wage = wageOf(c);
+  }
   S.candDay = S.day;
 }
 
@@ -815,7 +861,16 @@ function hospitalMul() {
   return Math.max(.3, m);
 }
 function addMoney(n) { S.money += n; const c = $('#hMoneyC'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
-function addRep(n) { S.rep = clamp(S.rep + n, 0, 100); }
+// 평판은 높을수록 오르기 어려움 (⭐5 근처에선 얻는 양이 절반 이하)
+function addRep(n) { if (n > 0) n *= 1 - .55 * (S.rep/100)**2; S.rep = clamp(S.rep + n, 0, 100); }
+const repTier = () => { let t = null; for (const x of REP_TIERS) if (S.rep >= x.rep) t = x; return t; };
+const repMul = () => (repTier() || { mul:1 }).mul;
+const repPct = t => Math.round((t.mul - 1)*100);
+function repTierHTML() {
+  const t = repTier(), nx = REP_TIERS.find(x => S.rep < x.rep);
+  const now = t ? `${t.icon} <b>${t.name}</b> · 진료비 <b>+${repPct(t)}%</b>${t.vip ? ' · VIP ↑' : ''}` : '평판 보너스 없음';
+  return `⭐ ${now}${nx ? `<br><small>다음: ${nx.icon} ${nx.name} (⭐${repStars(nx.rep)}) 진료비 +${repPct(nx)}% · 콤보가 끊기면 평판이 조금 떨어져요</small>` : ''}`;
+}
 function gradeProgress() {
   if (S.grade >= MAX_GRADE) return '최고 등급이에요! 👑';
   const th = GRADE_TH[S.grade];
@@ -912,14 +967,64 @@ function areaNames() {
   LAYOUT.wide[S.grade].join(' ').split(/\s+/).forEach(n => { if (n !== '.' && !out.includes(n)) out.push(n); });
   return out;
 }
+/* ----- 방 배치 바꾸기: 화면 방향·등급마다 따로 저장 ----- */
+const layKey = (mode = layoutMode()) => mode + S.grade;
+function curLayout(mode = layoutMode()) {
+  const def = LAYOUT[mode][S.grade], c = S.lay && S.lay[layKey(mode)];
+  const names = a => a.join(' ').split(/\s+/).sort().join(' ');
+  return Array.isArray(c) && c.length === def.length && names(c) === names(def) ? c : def;
+}
+function roomRect(m, id) {
+  let r0 = 1e9, r1 = -1, c0 = 1e9, c1 = -1;
+  m.forEach((row, r) => row.forEach((n, c) => { if (n === id) { r0 = Math.min(r0, r); r1 = Math.max(r1, r); c0 = Math.min(c0, c); c1 = Math.max(c1, c); } }));
+  return r1 < 0 ? null : { r0, c0, h:r1 - r0 + 1, w:c1 - c0 + 1 };
+}
+// 크기·모양이 같은 두 방의 자리를 맞바꿈
+function swapRooms(a, b, mode = layoutMode()) {
+  if (a === b) return false;
+  const m = curLayout(mode).map(r => r.split(' ')), A = roomRect(m, a), B = roomRect(m, b);
+  if (!A || !B || A.h !== B.h || A.w !== B.w) return false;
+  for (let dr = 0; dr < A.h; dr++) for (let dc = 0; dc < A.w; dc++) { m[A.r0+dr][A.c0+dc] = b; m[B.r0+dr][B.c0+dc] = a; }
+  S.lay = S.lay || {}; S.lay[layKey(mode)] = m.map(r => r.join(' '));
+  applyLayout();
+  return true;
+}
+const sameShape = (a, b) => { const m = curLayout().map(r => r.split(' ')), A = roomRect(m, a), B = roomRect(m, b); return a !== b && A && B && A.h === B.h && A.w === B.w; };
+function layMarks() {
+  const sel = G.layEdit && G.layEdit.sel;
+  mapEl.classList.toggle('selecting', !!sel);
+  mapEl.querySelectorAll('.card').forEach(c => { c.classList.toggle('laysel', c.dataset.room === sel); c.classList.toggle('target', !!sel && sameShape(sel, c.dataset.room)); });
+}
+function startLayEdit() {
+  if (G.mode !== 'prep') return;
+  closeModal(); G.layEdit = { sel:null };
+  coach(`🧩 바꿀 방 두 개를 차례로 톡!<br><small>크기·모양이 같은 방끼리 · ${layoutMode() === 'wide' ? '가로' : '세로'} 화면용 배치</small>`,
+    '<button class="btn" data-act="layReset">기본 배치</button><button class="btn pri" data-act="layDone">완료 ✓</button>');
+  $('#coach').classList.add('lay');
+  $('#mapWrap').style.paddingBottom = ($('#coach').offsetHeight + 22) + 'px'; // 안내창에 가리지 않게
+  layMarks();
+}
+function layTap(id) {
+  const e = G.layEdit; if (!e) return;
+  bounceEl(cardEl(id));
+  if (!e.sel) { e.sel = id; SFX.tap(); }
+  else if (e.sel === id) { e.sel = null; SFX.tap(); }
+  else { if (swapRooms(e.sel, id)) SFX.buy(); else { SFX.wrong(); toast('🧩 크기·모양이 같은 방끼리만 바꿀 수 있어요'); } e.sel = null; }
+  layMarks();
+}
+function endLayEdit(back = true) {
+  if (!G.layEdit) return;
+  G.layEdit = null; layMarks(); mapEl.classList.remove('selecting'); hideCoach(); save();
+  if (back) showPrep();
+}
+function resetLayout() { if (S.lay) delete S.lay[layKey()]; if (G.layEdit) G.layEdit.sel = null; applyLayout(); layMarks(); SFX.tap(); }
 function applyLayout() {
   if (!S) return;
-  const mode = layoutMode(), tpl = LAYOUT[mode][S.grade], cols = tpl[0].split(' ').length;
+  const mode = layoutMode(), tpl = curLayout(mode), cols = tpl[0].split(' ').length;
   mapEl.style.gridTemplateAreas = tpl.map(r => `"${r}"`).join(' ');
   mapEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
-  mapEl.dataset.rows = tpl.length;
+  mapEl.dataset.rows = tpl.length; mapEl.dataset.cols = cols; mapEl.dataset.mode = mode;
   mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(0,1fr))`;
-  mapEl.style.maxWidth = mode==='wide' ? ['1000px','1240px','1440px','1600px'][S.grade] : '';
   // 문 위치: 아래에 복도가 있으면 아래쪽, 맨 아랫줄 방이면 위쪽
   const rows = tpl.map(r => r.split(' '));
   mapEl.querySelectorAll('.card').forEach(c => {
@@ -930,7 +1035,7 @@ function applyLayout() {
   fitMap();
 }
 // 맵 높이를 남은 화면에 고정하고, 모든 방 내용이 들어가는 가장 큰 --pz를 찾음
-const PZ_MAX = 34, PZ_MIN = 16;
+const PZ_MAX = 60, PZ_MIN = 16;
 function fitMap() {
   if (!S || !mapEl.children.length) return;
   const wrap = $('#mapWrap');
@@ -940,6 +1045,8 @@ function fitMap() {
   const h = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   if (h <= 0) return;
   mapEl.style.height = h + 'px';
+  // 넓은 화면: 방이 너무 납작해지지 않는 선에서 가로도 꽉 채움
+  mapEl.style.maxWidth = mapEl.dataset.mode === 'wide' ? Math.round(Math.max(900, h * (+mapEl.dataset.cols || 4) / (+mapEl.dataset.rows || 3) * 1.45)) + 'px' : '';
   const cards = [...mapEl.querySelectorAll('.card')];
   const fits = () => cards.every(c => {
     if (c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1) return false;
@@ -947,8 +1054,12 @@ function fitMap() {
     return !cb || (cb.scrollHeight <= cb.clientHeight && cb.scrollWidth <= cb.clientWidth);
   });
   mapEl.classList.add('measuring');
-  let pz = PZ_MAX;
-  for (; pz > PZ_MIN; pz--) { mapEl.style.setProperty('--pz', pz + 'px'); if (fits()) break; }
+  const tryPz = v => { mapEl.style.setProperty('--pz', v + 'px'); return fits(); };
+  // 이분 탐색: 들어가는 가장 큰 크기
+  let lo = PZ_MIN, hi = PZ_MAX;
+  if (tryPz(hi)) lo = hi;
+  else while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tryPz(mid)) lo = mid; else hi = mid; }
+  const pz = lo;
   mapEl.style.setProperty('--pz', pz + 'px');
   // 가장 작게 해도 안 들어가는 화면이면 잘리지 않게 스크롤을 허용
   if (!fits()) {
@@ -1005,8 +1116,8 @@ function cardHTML(id) {
     case 'exam':  return hdr('🩻','검사실','<span class="syms">❓→🔍</span>') + `<div class="cb room1">${F('f-tl lightbox','🩻')}${F('f-tr','🧪')}${slotHTML('🩻 X-ray')}${slotHTML('💉 피검사')}</div>`;
     case 'pharm': return hdr('💊','약국','<span class="syms small">창구 3개</span>') + `<div class="cb has-shelf pharm-cb">${F('shelf','💊🧴💊🧴💊🧴')}<span class="staffs" data-staff="pharm"></span><div class="pslots">${slotHTML('창구1')}${slotHTML('창구2')}${slotHTML('창구3')}</div><div class="queue pq" id="pharmQ"></div></div>`;
     case 'surg':  return hdr('⚕️','수술실') + `<div class="cb room1">${F('f-tl lightbox','💡')}${F('cart f-br','🩺🧤')}${slotHTML()}</div>`;
-    case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}</div>`;
-    case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(1+S.up.ward)}</div></div>`;
+    case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}<span class="staffs" data-staff="inj"></span></div>`;
+    case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(bedCount())}</div></div>`;
     case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div><span class="staffs" data-staff="cash"></span></div>`;
     case 'rest':  return hdr('☕','휴게실') + `<div class="cb">${F('f-tr','☕')}${F('f-tl','🪴')}${F('sofa f-b','🛋️')}<span class="staffs" data-staff="rest"></span><span class="rest-empty">조용~ 🍵</span></div>`;
   }
@@ -1027,7 +1138,27 @@ function buildMap() {
   G.seatEls = [...mapEl.querySelectorAll('.seat')]; G.seats = G.seatEls.map(() => null);
   renderStaff();
 }
-function staffHome(s) { return s.role==='doctor' ? s.dept : s.role==='nurse' ? 'ent' : s.role==='pharm' ? 'pharm' : s.role==='cashier' ? 'cash' : 'wait'; }
+function staffHome(s) { return s.role==='doctor' ? s.dept : s.role==='nurse' ? 'ent' : (s.role==='pharm' || s.role==='pnurse') ? 'pharm' : s.role==='cashier' ? 'cash' : s.role==='inurse' ? (S.rooms.inj ? 'inj' : 'wait') : 'wait'; }
+// 자동 처리 간호사가 밀리면 방 위에 📥 표시 — 밀린 환자는 원장님이 직접 처리
+const BACKLOG = {
+  ent:  ['nurse',   p => p.stage === 'new'],
+  cash: ['cashier', p => p.stage === 'pay'],
+  pharm:['pnurse',  p => p.stage === 'next' && p.dest === 'pharm'],
+  inj:  ['inurse',  p => p.stage === 'next' && p.dest === 'inj'],
+};
+function renderBacklog() {
+  for (const id in BACKLOG) {
+    const c = cardEl(id); if (!c) continue;
+    const [role, f] = BACKLOG[id];
+    const n = !c.classList.contains('locked') && S.staff.some(s => s.role === role) ? G.patients.filter(f).length : 0;
+    let b = c.querySelector('.backlog');
+    if (n >= 3) {
+      if (!b) { b = document.createElement('span'); b.className = 'backlog'; b.title = '밀린 환자'; (c.querySelector('.ch') || c).appendChild(b); }
+      setH(b, `📥${n}`);
+      if (n >= 4 && G.mode === 'play' && !G.blWarn[id]) { G.blWarn[id] = true; toast(`📥 ${jo(ROLE[role].t,'이','가')} 바빠서 밀렸어요! 밀린 환자는 원장님이 직접 톡 해 주세요`, 'ev'); }
+    } else if (b) b.remove();
+  }
+}
 function staffBadge(s) {
   const tired = s.fat >= 80 && !(s.rest > 0);
   return `<span class="sb${tired?' tired':''}" title="${staffName(s)} Lv.${s.lvl}">${s.animal}<i>${ROLE[s.role].b}</i>${s.rest>0?'<em>☕</em>':tired?'<em>💤</em>':''}</span>`;
@@ -1038,6 +1169,7 @@ function renderStaff() {
   mapEl.querySelectorAll('[data-staff]').forEach(el => setH(el, (groups[el.dataset.staff] || []).map(staffBadge).join('')));
   for (const d of DEPT_ORDER) if (S.depts[d] && G.slotEls[d]) G.slotEls[d].forEach((el, i) => el.classList.toggle('closed', !slotReady(d, i)));
   const mc = cardEl('more'); if (mc) setH(mc, moreHTML()); // 승급 진행도 실시간 갱신
+  renderBacklog();
 }
 
 /* ===================== 환자 위치 ===================== */
@@ -1117,7 +1249,7 @@ function spawn(force=false, o={}) {
   if (o.vip != null) vip = o.vip;
   else if (emerg || karen) vip = false;
   else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
-  else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1)) vip = true;
+  else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1) * ((repTier() || {}).vip || 1)) vip = true;
   const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:symDept(sym), unknown, revealed:false, shown:unknown?'❓':sym,
     urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
     extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
@@ -1169,7 +1301,14 @@ function register(p) {
   toSeat(p);
   if (G.tut === 1) setTut(2);
 }
-function breakCombo() { if (G.combo >= 3) toast('콤보가 끊겼어요… 💦'); G.combo = 0; }
+// 콤보가 끊기면 평판도 조금 깎임 (긴 콤보일수록 더)
+const comboPenalty = c => c >= 1 ? Math.min(2.5, 1 + c*.1) : 0;
+function breakCombo() {
+  const pen = comboPenalty(G.combo);
+  if (pen) addRep(-pen);
+  if (G.combo >= 3) toast(`콤보가 끊겼어요… ⭐ 평판 -${(pen/20).toFixed(2)} 💦`);
+  G.combo = 0;
+}
 function wrongMove(p, msg='여기 아닌 것 같아요…') {
   say(p, msg); p.pat = Math.max(1, p.pat - 18); breakCombo(); SFX.wrong(); G.stats.wrong++;
   p.el.classList.remove('shake'); void p.el.offsetWidth; p.el.classList.add('shake');
@@ -1189,7 +1328,8 @@ function pay(p, opt = {}) {
   if (p.stage !== 'pay') return;
   const fast = !opt.auto && G.t - p.cashT < 4 ? 5 : 0;
   const tip = (p.karen ? 0 : Math.round(p.fee * .25 * p.pat / 100) + fast) + extraPay(p);
-  const total = p.fee + tip;
+  const base = p.fee + tip, total = Math.round(base * repMul());
+  G.stats.repBonus += total - base;
   addMoney(total); G.stats.income += total; G.stats.treated++; S.total++;
   if (p.vip) G.stats.vip++;
   addRep(p.vip ? 1.5 : p.karen ? 1.5 : .45);
@@ -1221,7 +1361,11 @@ function markTargets(p) {
   mapEl.querySelectorAll('.card').forEach(c => c.classList.toggle('target', v.includes(c.dataset.room)));
 }
 function clearTargets() { mapEl.classList.remove('selecting'); mapEl.querySelectorAll('.card.target').forEach(c => c.classList.remove('target')); }
-function select(p) { deselect(); G.sel = p; p.el.classList.add('sel'); markTargets(p); }
+let selHinted = false;
+function select(p) {
+  deselect(); G.sel = p; p.el.classList.add('sel'); markTargets(p);
+  if (!selHinted && !G.tut) { selHinted = true; toast('👉 이제 보낼 곳(초록 테두리 방)을 톡!'); }
+}
 function deselect() { if (G && G.sel) { G.sel.el.classList.remove('sel'); G.sel = null; } clearTargets(); }
 function lockedInfo(id) {
   if (id === 'more') { toast('🏗️ ' + gradeProgress()); return; }
@@ -1335,7 +1479,7 @@ function svcStep(r, i, p) {
       say(p, `다음은 ${DEPTS[nx.dept].name}! ${nx.sym}`, 2200);
       return;
     }
-    p.done = true; p.dest = rollDest(r, p); p.stage = 'next';
+    p.done = true; p.dest = rollDest(r, p); p.stage = 'next'; p.nextT = G.t;
     toSeat(p); updBub(p); bounce(p); SFX.done();
     if (G.tut === 3) setTut(4);
   } else if (r === 'exam') {
@@ -1369,23 +1513,25 @@ function isIdle(s) {
   if (s.role === 'pharm') return !(G.slots.pharm && G.slots.pharm.some(Boolean));
   return true;
 }
+// 한 명씩 차례로 처리하는 간호사들: 누구를 · 어떻게
+const oldest = (arr, k) => arr.sort((a, b) => (a[k] || 0) - (b[k] || 0))[0];
+const NAV = {
+  nurse:   { next: () => G.patients.find(x => x.stage === 'new'), run: p => register(p) },
+  cashier: { next: () => oldest(G.patients.filter(x => x.stage === 'pay'), 'cashT'), run: p => pay(p, { auto:true }) },
+  pnurse:  { next: () => oldest(G.patients.filter(x => x.stage === 'next' && x.dest === 'pharm'), 'nextT'), run: p => sendTo(p, 'pharm') },
+  inurse:  { next: () => S.rooms.inj ? oldest(G.patients.filter(x => x.stage === 'next' && x.dest === 'inj'), 'nextT') : null, run: p => sendTo(p, 'inj') },
+};
 function updStaff(dt) {
   let resting = S.staff.filter(s => s.rest > 0).length;
   for (const s of S.staff) {
     if (s.rest > 0) { s.rest -= dt; s.fat = Math.max(0, s.fat - dt*12); if (s.rest <= 0) { s.rest = 0; s.fat = 0; } continue; }
     if (S.rooms.rest && s.fat >= 80 && resting < 2 && isIdle(s)) { s.rest = 9; resting++; continue; }
     const tm = s.fat >= 100 ? .6 : 1;
-    if (s.role === 'nurse') {
+    if (NAV[s.role]) {
       s.t -= dt*tm;
       if (s.t <= 0) {
-        const p = G.patients.find(x => x.stage === 'new');
-        if (p) { register(p); work(s, 4); s.t = 3.4 - s.spd*.45; } else s.t = .3;
-      }
-    } else if (s.role === 'cashier') {
-      s.t -= dt*tm;
-      if (s.t <= 0) {
-        const p = G.patients.filter(x => x.stage === 'pay').sort((a, b) => a.cashT - b.cashT)[0];
-        if (p) { pay(p, { auto:true }); work(s, 4); s.t = 3.2 - s.spd*.4; } else s.t = .3;
+        const p = NAV[s.role].next();
+        if (p) { NAV[s.role].run(p); work(s, 4); s.t = navInt(s); } else s.t = .3;
       }
     } else if (s.role === 'janitor') {
       if (G.dirt.length) { s.t += dt*tm; if (s.t >= 5 - s.spd*.7) { s.t = 0; cleanDirt(G.dirt[0], true); work(s, 6); } }
@@ -1446,7 +1592,7 @@ function coach(html, btns='') {
   c.innerHTML = `<div class="who">🐨</div><div class="txt"><b>코코 실장</b><br>${html}${btns?`<div class="btns">${btns}</div>`:''}</div>`;
   c.classList.remove('hidden'); $('#mapWrap').classList.add('coachpad');
 }
-function hideCoach() { $('#coach').classList.add('hidden'); $('#mapWrap').classList.remove('coachpad'); }
+function hideCoach() { $('#coach').classList.add('hidden'); $('#coach').classList.remove('lay'); $('#mapWrap').classList.remove('coachpad'); $('#mapWrap').style.paddingBottom = ''; }
 function setTut(n) {
   G.tut = n;
   mapEl.querySelectorAll('.hl').forEach(e => e.classList.remove('hl'));
@@ -1455,7 +1601,7 @@ function setTut(n) {
   const doc = doctorOf('int');
   switch (n) {
     case 1: coach('원장님, 첫 환자가 왔어요! 🐰<br>입구의 환자를 <b>톡</b> 눌러서 <b>접수</b>해 주세요 👆', skip); hl('ent'); break;
-    case 2: coach('말풍선에 <b>🤒 열</b>이 보이죠? 열은 <b>🩺 내과</b>예요!<br>환자를 <b>끌어서</b> 내과에 놓거나, <b>환자 톡 → 내과 톡</b>!<br><small>진료과 카드 오른쪽 위에 받는 증상이 적혀 있어요</small>', skip); hl('int'); break;
+    case 2: coach('말풍선에 <b>🤒 열</b>이 보이죠? 열은 <b>🩺 내과</b>예요!<br><b>환자를 톡</b> 한 다음 <b>내과를 톡</b>!<br><small>진료과 카드 오른쪽 위에 받는 증상이 적혀 있어요</small>', skip); hl('int'); break;
     case 3: coach(`${doc ? staffNameJo(doc,'이','가') : '의사 선생님이'} 진료 중이에요… 🩺<br><small>진료받는 동안엔 하트가 줄지 않아요</small>`); break;
     case 4: coach('진료 끝! 환자 머리 위에 <b>💊</b>가 떴어요.<br><b>💊 약국</b>으로 안내해 주세요!<br><small>💉는 주사실, 🛏️는 입원실이에요. 틀리면 하트가 줄어요</small>', skip); hl('pharm'); break;
     case 5: coach('약 받는 중이에요 💊 조금만 기다려요~'); break;
@@ -1496,6 +1642,7 @@ function updateHUD() {
   if (!S) return;
   setT('#hMoney', fmtN(S.money)); $('#hMoneyC').classList.toggle('neg', S.money < 0);
   setT('#hRep', repStars(S.rep)); setT('#hStars', String(S.stars));
+  const rt = repTier(); setT('#hRepB', rt ? `+${repPct(rt)}%` : '');
   setT('#hDay', `${S.day}일차`); setT('#hGrade', GRADES[S.grade]);
   const t = G.mode === 'play' ? G.t : G.mode === 'summary' ? DAY_LEN : 0;
   setT('#hClock', clockStr(t)); $('#hTime').style.width = Math.min(100, t/DAY_LEN*100) + '%';
@@ -1563,16 +1710,19 @@ function prepDay() {
   showPrep();
 }
 function showPrep() {
+  if (G.layEdit) endLayEdit(false);
   const ev = G.event ? EVENTS[G.event.id] : null;
   const greet = pick(['오늘도 동물 친구들이 기다려요 🐾','좋은 아침이에요, 원장님! ☀️','말랑말랑한 하루 되세요 💕','커피 한 잔 하고 시작해요 ☕']);
   openModal(`<h2>☀️ ${S.day}일차 아침</h2><p class="sub">${greet}</p>
     <div class="box"><b>🎯 오늘의 목표</b><br>${G.goals.map(g => `· ${goalIcon(g)} ${goalText(g)}`).join('<br>')}<br><small>목표마다 보너스 💰${goalReward()} + 🌟 별 1개</small></div>
     <div class="box">${ev ? `<b>${ev.icon} 오늘의 이벤트: ${ev.name}</b><br><small>${ev.desc}</small>` : '🌤️ 오늘은 평화로운 날이에요'}</div>
     <div class="box">🏥 <b>${GRADES[S.grade]}</b> · 💰 ${fmtN(S.money)} · 👩‍⚕️ 직원 ${S.staff.length}명 (일급 합계 💰${fmtN(S.staff.reduce((a,s)=>a+s.wage,0))})<br><small>${gradeProgress()}</small></div>
+    <div class="box">${repTierHTML()}</div>
     <div class="brow">
       <button class="btn" data-act="shop:dept">🛒 상점</button>
       <button class="btn" data-act="shop:staff">👩‍⚕️ 직원</button>
       <button class="btn" data-act="roster">👥 명부</button>
+      <button class="btn" data-act="layout">🧩 배치</button>
       <button class="btn" data-act="guide">📖 증상표</button>
       <button class="btn" data-act="sound">${OPT.sound?'🔊':'🔇'}</button>
     </div>
@@ -1594,10 +1744,12 @@ function endDay() {
   G.mode = 'summary'; deselect(); hideCoach(); setSpeed(1);
   const st = G.stats;
   let autoPay = 0;
+  const rm = repMul();
   for (const p of G.patients.slice()) {
-    if (p.stage === 'pay') { addMoney(p.fee); st.income += p.fee; st.treated++; S.total++; if (p.vip) st.vip++; addRep(.5); autoPay++; removeP(p, 'bye'); }
+    if (p.stage === 'pay') { const a = Math.round(p.fee * rm); st.repBonus += a - p.fee; addMoney(a); st.income += a; st.treated++; S.total++; if (p.vip) st.vip++; addRep(.5); autoPay++; removeP(p, 'bye'); }
     else if (p.stage === 'ward') {
-      const amt = p.fee + 120 + S.day*6 + extraPay(p);
+      const b = p.fee + 120 + S.day*6 + extraPay(p), amt = Math.round(b * rm);
+      st.repBonus += amt - b;
       addMoney(amt); st.income += amt; st.wardIncome += amt; st.wardN++; st.treated++; S.total++; if (p.vip) st.vip++;
       addRep(1.5); floatAt(p.el, `+💰${amt}`); removeP(p, 'bye');
     } else removeP(p, 'bye');
@@ -1634,6 +1786,7 @@ function endDay() {
     <div class="box">
       ${row('진료 수입', `+💰${fmtN(st.income - st.wardIncome)}`, 'plus')}
       ${st.wardIncome ? row('입원 퇴원비', `+💰${fmtN(st.wardIncome)}`, 'plus') : ''}
+      ${st.repBonus ? row('　└ ⭐ 평판 보너스 (포함)', `+💰${fmtN(st.repBonus)}`, 'plus') : ''}
       ${bonus ? row('목표 보너스', `+💰${fmtN(bonus)}`, 'plus') : ''}
       ${row(`직원 일급 (${S.staff.length}명)`, `-💰${fmtN(wages)}`, 'minus')}
       ${st.fine ? row('위생 벌금', `-💰${fmtN(st.fine)}`, 'minus') : ''}
@@ -1658,7 +1811,7 @@ function showPromo() {
 /* ===================== 상점 ===================== */
 const coin = n => `<span class="coin">💰</span>${fmtN(n)}`;
 const dots = (n, cls) => `<span class="dots ${cls}">${'<i class="on"></i>'.repeat(n)}${'<i></i>'.repeat(5-n)}</span>`;
-const ROLE_TONE = { doctor:'sky', nurse:'mint', pharm:'lav', janitor:'lemon', cashier:'peach' };
+const ROLE_TONE = { doctor:'sky', nurse:'mint', pharm:'lav', janitor:'lemon', cashier:'peach', pnurse:'mint', inurse:'sky' };
 // 상점 카드 한 장
 function itemHTML(o) {
   const st = o.own ? ' own' : o.dis ? ' dim' : '';
@@ -1706,7 +1859,7 @@ function priceState(own, ownLab, grade, price, blocked) {
 function hireCheck(c) {
   const fee = c.wage*2;
   if (c.role === 'doctor') return { ok:S.money >= fee, label:`${doctorsOf(c.dept).length >= docCap() ? '🔄 교체' : '💌 고용'} ${coin(fee)}` };
-  if (capOf(c.role) <= 0) return { ok:false, label:'🔒 병원 승급 후' };
+  if (capOf(c.role) <= 0) return { ok:false, label:`🔒 ${GRADES[ROLE_GRADE[c.role] || 1]} 승급 후` };
   if (S.staff.filter(s => s.role === c.role).length >= capOf(c.role)) return { ok:false, label:'자리가 꽉 찼어요' };
   return { ok:S.money >= fee, label:`💌 고용 ${coin(fee)}` };
 }
@@ -1726,7 +1879,6 @@ function staffCard(s, i, cand) {
 }
 const trainCost = s => Math.round(250 * 1.6 ** (s.tr || 0));
 function trainHTML(s) {
-  if (S.grade < 2) return '<div class="wage">🔒 종합병원부터 연수</div>';
   const c = trainCost(s), b = (k, ic) => `<button class="sbuy ghost" data-act="buy:train:${s.id}:${k}" ${s[k] >= 5 || S.money < c ? 'disabled' : ''}>📚 ${ic} ${s[k] >= 5 ? 'MAX' : coin(c)}</button>`;
   return `<div class="trainrow">${b('spd','⚡')}${b('kind','😊')}</div>`;
 }
@@ -1782,7 +1934,10 @@ function showShop(tab) {
       <div class="sgrid">${S.staff.map(s => staffCard(s, 0, false)).join('')}</div>
       <div class="ssec">💌 오늘의 지원자 <small>계약금 = 일급 ×2</small></div>
       ${S.cands.length ? `<div class="sgrid">${S.cands.map((c, i) => staffCard(c, i, true)).join('')}</div>` : '<div class="stip">🌙 오늘 지원자는 모두 만났어요. 내일 새 지원자가 와요!</div>'}
-      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 수납 간호사 ${capOf('cashier') ? capOf('cashier') + '명' : '병원부터'} · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 ${docCap()}명 (의사 수만큼 진료 의자)<br>😊 친절이 높을수록 환자 하트가 천천히 줄고, 일할수록 레벨 업해요!</div>`;
+      <div class="stip">👥 정원: 간호사 ${capOf('nurse')}명 · 수납 간호사 ${capOf('cashier') ? capOf('cashier') + '명' : '병원부터'} · 약국 안내 ${capOf('pnurse') ? capOf('pnurse') + '명' : '종합병원부터'} · 주사 안내 ${capOf('inurse') ? capOf('inurse') + '명' : '대학병원부터'} · 약사 1명 · 청소부 ${capOf('janitor')}명 · 의사는 진료과마다 ${docCap()}명 (의사 수만큼 진료 의자)<br>
+      ⚡ 간호사는 속도가 느리면 환자가 밀려요 (📥 표시) — 밀린 환자는 원장님이 직접!<br>
+      😊 친절이 높을수록 환자 하트가 천천히 줄어요 · 능력이 좋을수록 일급이 비싸요<br>
+      📚 일하면서 크는 건 아주 천천히예요. 빨리 키우려면 연수를 보내 주세요!</div>`;
   }
   openModal(`<div class="shop-head"><div class="awning"></div>
       <div class="shop-title">🛒 말랑 상점</div>
@@ -1818,7 +1973,7 @@ function buy(key) {
     S.staff.push(c); S.cands.splice(+id, 1); msg = `${c.animal} ${staffName(c)} 입사! 잘 부탁해요 💕`;
   } else if (kind === 'train') {
     const s = S.staff.find(x => x.id === +id), c = s && trainCost(s);
-    if (!s || S.grade < 2 || !['spd','kind'].includes(sub) || s[sub] >= 5 || S.money < c) return;
+    if (!s || !['spd','kind'].includes(sub) || s[sub] >= 5 || S.money < c) return;
     S.money -= c; s[sub]++; s.tr++; s.wage = wageOf(s);
     msg = `📚 ${staffName(s)} 연수 완료! ${sub === 'spd' ? '⚡속도' : '😊친절'} ${s[sub]}`;
   } else if (kind === 'fire') {
@@ -1847,13 +2002,19 @@ function showGuide() {
     <div class="box"><b>병원 운영</b><br>
       🩺 의사를 여러 명 뽑으면 진료 의자가 늘어나 동시에 진료해요 (등급이 오를수록 진료과당 정원 ↑)<br>
       💳 수납 간호사: 병원 등급부터 고용, 수납을 자동으로 해 줘요<br>
+      🧭 약국 안내 간호사(종합병원부터) · 🩹 주사 안내 간호사(대학병원부터): 진료 끝난 환자를 알아서 보내요<br>
+      ⚡ 간호사가 느리면 환자가 밀려요(📥). 밀린 환자는 원장님이 직접 처리해 주세요<br>
       👥 직원 명부: 위쪽 👥 버튼으로 직원을 보고 ✏️ 이름을 바꿀 수 있어요<br>
-      📚 연수 · 📣 홍보: 종합병원부터 직원 능력치를 올리고, 하루 동안 환자를 더 불러요<br>
+      📚 연수: 직원 능력치를 올려요 (일하면서 크는 건 아주 천천히) · 📣 홍보: 종합병원부터<br>
+      🧩 배치: 영업 준비 화면에서 크기가 같은 방끼리 자리를 바꿀 수 있어요<br>
       🎓 대학병원: 👂 이비인후과 · 🧠 신경과 · ⚕️ 수술실이 열려요</div>
-    <div class="box"><b>조작</b><br>톡: 접수 · 환자 선택 · 수납 / 끌기: 진료실 안내<br>환자 톡 → 방 톡으로도 안내돼요 · 쓰레기 🧻 톡: 청소<br>스페이스: 일시정지 · 1/2/4: 배속</div>
+    <div class="box"><b>⭐ 평판</b><br>
+      ⭐3.0 진료비 +10% · ⭐4.0 +25% (VIP ↑) · ⭐4.5 +40% · ⭐4.8 +60%<br>
+      평판이 높을수록 더 오르기 어렵고, 콤보가 끊기면 조금 떨어져요</div>
+    <div class="box"><b>조작</b><br>톡: 접수 · 수납 · 쓰레기 🧻 청소<br>안내: <b>환자 톡 → 보낼 방 톡</b> (환자를 다시 톡 하면 선택 취소)<br>스페이스: 일시정지 · 1/2/4: 배속</div>
     <div class="brow"><button class="btn pri" data-act="guideClose">알겠어요!</button></div>`);
 }
-const ROSTER_ORDER = ['doctor','nurse','cashier','pharm','janitor'];
+const ROSTER_ORDER = ['doctor','nurse','cashier','pnurse','inurse','pharm','janitor'];
 function showRoster() {
   if (G.mode === 'play') G.modal = true;
   const list = ROSTER_ORDER.flatMap(r => S.staff.filter(s => s.role === r));
@@ -1895,6 +2056,7 @@ function showTitle() {
 }
 function startGame(s) {
   S = s; $('#title').classList.add('hidden');
+  [...S.staff, ...S.cands].forEach(x => x.wage = wageOf(x)); // 일급 공식이 바뀌어도 이어하기 저장과 맞춤
   mapEl.innerHTML = ''; clearToasts();
   prepDay();
 }
@@ -1932,6 +2094,9 @@ function act(a) {
     case 'roster': showRoster(); break;
     case 'rosterClose': closeRoster(); break;
     case 'rename': startRename(+v); break;
+    case 'layout': startLayEdit(); break;
+    case 'layDone': endLayEdit(); break;
+    case 'layReset': resetLayout(); break;
     case 'menuNo': closeModal(); G.modal = false; if (G.mode === 'prep') showPrep(); else if (G.mode === 'summary' && G.back) G.back(); break;
     case 'menuYes': showTitle(); break;
     case 'newYes': closeModal(); try { localStorage.removeItem(SAVE_KEY); } catch(e) {} newState(); save(); startGame(S); break;
@@ -1967,56 +2132,21 @@ function tapRoom(id, c) {
   if (isLocked(id) || id === 'more') { lockedInfo(id); return; }
   SFX.tap();
   if (DEPTS[id]) { const ds = doctorsOf(id); if (ds.length) toast(ds.map(staffInfo).join('<br>')); }
-  else if (id === 'pharm') { const ph = S.staff.find(s => s.role === 'pharm'); toast(ph ? staffInfo(ph) : '💊 약사가 없어서 원장님이 천천히 약을 지어요. 약사를 고용해 봐요!'); }
+  else if (id === 'pharm') { const l = S.staff.filter(s => s.role === 'pharm' || s.role === 'pnurse'); toast(l.length ? l.map(staffInfo).join('<br>') : '💊 약사가 없어서 원장님이 천천히 약을 지어요. 약사를 고용해 봐요!'); }
+  else if (id === 'inj') { const l = S.staff.filter(s => s.role === 'inurse'); toast(l.length ? l.map(staffInfo).join('<br>') : S.grade >= 3 ? '🩹 주사 안내 간호사를 고용하면 💉 환자를 알아서 안내해요!' : '🩹 대학병원이 되면 주사 안내 간호사를 고용할 수 있어요!'); }
   else if (id === 'ent') { const n = S.staff.filter(s => s.role === 'nurse'); toast(n.length ? n.map(staffInfo).join('<br>') : '📋 간호사를 고용하면 접수를 자동으로 해 줘요!'); }
   else if (id === 'wait') { const j = S.staff.filter(s => s.role === 'janitor'); toast(j.length ? j.map(staffInfo).join('<br>') : '🧻 쓰레기를 톡! 하면 치울 수 있어요. 청소부가 있으면 자동!'); }
 }
+// 안내는 톡 → 톡: 환자를 톡 해서 고르고, 보낼 방을 톡
 mapEl.addEventListener('click', e => {
-  if (e.target.closest('.pt')) return;
+  if (G && G.layEdit) { const c = e.target.closest('.card'); if (c) layTap(c.dataset.room); return; }
   if (!canAct()) return;
+  const pe = e.target.closest('.pt');
+  if (pe) { const p = G.patients.find(x => x.id === +pe.dataset.id); if (p) tapPatient(p); return; }
   const d = e.target.closest('.dirt'); if (d) { cleanDirt(d, false); return; }
   const c = e.target.closest('.card'); if (!c) { deselect(); return; }
   tapRoom(c.dataset.room, c);
 });
-// 드래그 앤 드롭 (마우스 + 터치)
-let drag = null;
-const cardAt = (x, y) => { const el = document.elementFromPoint(x, y); return el ? el.closest('#map .card') : null; };
-mapEl.addEventListener('pointerdown', e => {
-  const pe = e.target.closest('.pt'); if (!pe) return;
-  const p = G.patients.find(x => x.id === +pe.dataset.id); if (!p) return;
-  if (e.pointerType === 'mouse' && e.button !== 0) return;
-  e.preventDefault();
-  drag = { p, x0:e.clientX, y0:e.clientY, moved:false, ghost:null, hover:null, id:e.pointerId };
-});
-addEventListener('pointermove', e => {
-  if (!drag || e.pointerId !== drag.id) return;
-  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
-  if (!drag.moved) {
-    if (dx*dx + dy*dy < 64) return;
-    if (!canAct() || !['reg','queued','next'].includes(drag.p.stage)) return;
-    drag.moved = true;
-    const g = drag.p.el.cloneNode(true); g.classList.add('ghost'); g.classList.remove('sel', 'arrive');
-    g.style.transform = ''; g.style.transition = ''; document.body.appendChild(g); drag.ghost = g;
-    drag.p.el.classList.add('dragging'); markTargets(drag.p);
-  }
-  e.preventDefault();
-  drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
-  const c = cardAt(e.clientX, e.clientY);
-  if (c !== drag.hover) { if (drag.hover) drag.hover.classList.remove('hover'); drag.hover = c; if (c) c.classList.add('hover'); }
-}, { passive:false });
-function endDrag(d) {
-  if (d.ghost) d.ghost.remove();
-  if (d.hover) d.hover.classList.remove('hover');
-  d.p.el.classList.remove('dragging');
-  deselect();
-}
-addEventListener('pointerup', e => {
-  if (!drag || e.pointerId !== drag.id) return;
-  const d = drag; drag = null;
-  if (d.moved) { endDrag(d); const c = cardAt(e.clientX, e.clientY); if (c && d.p.stage !== 'gone' && canAct()) { bounceEl(c); sendTo(d.p, c.dataset.room); } }
-  else tapPatient(d.p);
-});
-addEventListener('pointercancel', () => { if (drag) { if (drag.moved) endDrag(drag); drag = null; } });
 
 document.querySelectorAll('.speed button').forEach(b => b.addEventListener('click', () => { if (G && G.mode === 'play') { setSpeed(+b.dataset.sp); SFX.tap(); } }));
 $('#pauseOv').addEventListener('click', () => setSpeed(G.resume || 1));
