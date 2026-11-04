@@ -45,6 +45,30 @@ def test_rooms_do_not_overlap_waiting_room(page_at):
     assert js(page, SCROLLFIT) is False
 
 
+def test_walking_patient_is_visible_above_rooms(page_at):
+    page = page_at((430, 932)); boot(page)
+    pid = spawn_patient(page, sym='🤒', urg=0)
+    page.wait_for_timeout(700)
+    js(page, f"register(G.patients.find(p=>p.id==={pid}))")
+    # 걷는 동안: 맵 밖 최상위 층에 보이는 환자가 있고, 방 안의 진짜 환자는 숨김
+    w = page.locator('body > .pt.walker')
+    assert w.count() == 1
+    assert js(page, "getComputedStyle(document.querySelector('body > .pt.walker')).position") == 'fixed'
+    assert js(page, f"G.patients.find(p=>p.id==={pid}).el.style.visibility") == 'hidden'
+    assert page.locator(f'.pt[data-id="{pid}"]').count() == 1  # 복제본은 data-id 없음
+    page.wait_for_timeout(1400)
+    assert page.locator('.pt.walker').count() == 0
+    assert js(page, f"G.patients.find(p=>p.id==={pid}).el.style.visibility") == ''
+
+
+def test_walker_cleared_when_patient_leaves(page_at):
+    page = page_at((430, 932)); boot(page)
+    pid = spawn_patient(page, sym='🤒', urg=0)
+    page.wait_for_timeout(700)
+    js(page, f"const p=G.patients.find(x=>x.id==={pid}); register(p); p.stage='pay'; toCash(p); pay(p)")
+    assert page.locator('.pt.walker').count() == 0
+
+
 # ---------- 3. 방 배치 바꾸기 ----------
 def test_swap_same_size_rooms_and_persist(page_at):
     page = page_at((390, 844)); boot(page, grade=1, depts={'ort': True})

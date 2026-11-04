@@ -153,6 +153,8 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .pt.bye .pt-in{animation:bye .8s ease-in forwards}
 .pt.mad .pt-in{animation:madOut .9s ease-in forwards}
 .pt.ghost{position:fixed;z-index:100;pointer-events:none;transform:translate(-50%,-75%) scale(1.25);opacity:.95}
+/* 걷는 중인 환자: 방 테두리에 잘리지 않게 맵 위(HUD·일시정지 화면 아래)에서 움직임 */
+.pt.walker{position:fixed;z-index:19;pointer-events:none;margin:0}
 
 /* UI 레이어 */
 #pauseOv{position:fixed;inset:0;background:#fff9eecc;display:flex;align-items:center;justify-content:center;z-index:20;font-size:1.3rem;font-weight:900;flex-direction:column;gap:8px;cursor:pointer;text-align:center}
@@ -1177,23 +1179,32 @@ function renderStaff() {
 }
 
 /* ===================== 환자 위치 ===================== */
-// FLIP: 위치를 옮긴 뒤 원래 자리에서 미끄러지듯 걸어가게 함
+// 걷기: 방은 내용을 잘라 내므로(화면 맞춤), 걷는 동안은 맵 위 최상위 층의 복제본이 움직이고
+// 진짜 환자는 도착할 때까지 숨겨 둠 → 방 사이를 지나가는 모습이 항상 보임
+function stopWalk(p) {
+  clearTimeout(p._walkT);
+  if (p._walker) { p._walker.remove(); p._walker = null; }
+  if (p.el) p.el.style.visibility = '';
+}
 function place(p, container) {
-  const el = p.el, first = el.isConnected ? el.getBoundingClientRect() : null, from = el.parentNode;
+  const el = p.el, from = el.parentNode;
+  const first = p._walker ? p._walker.getBoundingClientRect() : el.isConnected ? el.getBoundingClientRect() : null;
+  stopWalk(p);
   container.appendChild(el);
   if (from && from.classList && from.classList.contains('queue')) overlapQueue(from);
   if (container.classList.contains('queue')) overlapQueue(container);
   if (!first) return;
-  const last = el.getBoundingClientRect(), dx = first.left - last.left, dy = first.top - last.top;
+  const last = el.getBoundingClientRect(), dx = last.left - first.left, dy = last.top - first.top;
   if (Math.abs(dx) + Math.abs(dy) < 1) return;
   // 거리와 배속에 맞춰 걷는 시간 조절
   const dur = clamp(Math.hypot(dx, dy) / 520, .35, 1.1) / Math.sqrt(Math.max(1, G.speed));
-  el.style.transition = 'none'; el.style.transform = `translate(${dx}px,${dy}px)`; el.style.zIndex = '30';
-  el.getBoundingClientRect();
-  el.style.transition = `transform ${dur}s ease-in-out`; el.style.transform = '';
-  el.classList.add('walk');
-  clearTimeout(p._walkT);
-  p._walkT = setTimeout(() => { el.style.zIndex = ''; el.classList.remove('walk'); }, dur*1000 + 30);
+  const w = el.cloneNode(true);
+  w.removeAttribute('data-id'); w.classList.remove('sel', 'arrive', 'dragging'); w.classList.add('walker', 'walk');
+  w.style.cssText = `left:${first.left}px;top:${first.top}px;width:${first.width}px;height:${first.height}px;--pz:${getComputedStyle(mapEl).getPropertyValue('--pz')}`;
+  document.body.appendChild(w); w.getBoundingClientRect();
+  w.style.transition = `transform ${dur}s ease-in-out`; w.style.transform = `translate(${dx}px,${dy}px)`;
+  p._walker = w; el.style.visibility = 'hidden';
+  p._walkT = setTimeout(() => stopWalk(p), dur*1000 + 30);
 }
 const freeSeat = () => G.seats.indexOf(null);
 function leave(p) {
@@ -1210,7 +1221,7 @@ function toSeat(p) {
 function toCash(p) { leave(p); p.loc = 'cash'; p.cashT = G.t; place(p, G.cashQ); }
 function removeP(p, cls) {
   if (G.sel === p) deselect();
-  leave(p); p.stage = 'gone'; p.el.classList.add(cls);
+  leave(p); stopWalk(p); p.stage = 'gone'; p.el.classList.add(cls);
   const el = p.el; setTimeout(() => { const q = el.parentNode; el.remove(); if (q && q.classList && q.classList.contains('queue')) overlapQueue(q); }, 900);
   G.patients = G.patients.filter(x => x !== p);
 }
