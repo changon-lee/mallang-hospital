@@ -450,3 +450,29 @@ def test_auto_play_with_annex(page_at):
         inc += js(page, "G.stats.annexIncome")
         js(page, "act('sumOk'); act('start'); setSpeed(0)")
     assert page.js_errors == [] and inc > 0
+
+
+# ---------- Task 7: 안내 ----------
+
+def test_guide_mentions_endgame(page_at):
+    page = page_at(); boot(page)
+    js(page, "showGuide()")
+    txt = page.locator('.modal').inner_text()
+    for w in ['신관', '장비', '기부', '연구', '트로피']:
+        assert w in txt
+
+
+def test_unlock_hint_once(page_at):
+    page = page_at(); boot(page, grade=2, day=10)
+    js(page, SPY); js(page, "S.seen = {}; prepDay()")
+    assert any('연구' in h for h in js(page, "_T"))
+    js(page, "_T.length = 0; prepDay()")
+    assert not any('연구' in h for h in js(page, "_T"))
+
+
+def test_heli_free_on_volunteer_day(page_at):
+    page = page_at(); annex_day(page, 5)
+    js(page, "G.vol = true")
+    m0 = js(page, "S.money"); js(page, "spawnHeli()")
+    tick(page, 10.5)
+    assert js(page, "S.money") == m0 and js(page, "S.life.heli") == 1

@@ -766,7 +766,7 @@ function newState() {
   const s = { v:2, day:1, money:300, rep:30, stars:0, grade:0, total:0,
     depts:{int:true}, rooms:{exam:false,inj:false,rest:false,surg:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
     staff:[], cands:[], candDay:0, tut:false, nextId:1, lay:{},
-    eq:{}, res:{done:{},cur:null}, annex:{lv:0,build:null}, donated:0, volLast:-99, life:newLife(), troph:{} };
+    eq:{}, res:{done:{},cur:null}, annex:{lv:0,build:null}, donated:0, volLast:-99, life:newLife(), troph:{}, seen:{} };
   S = s;
   s.staff.push(mkStaff('doctor', {dept:'int', animal:'🐻', spd:2, kind:2}));
   return s;
@@ -1639,7 +1639,7 @@ function axLeave(p) {
 function axDone(id, i, p) {
   const A = G.ax[id]; A.slots[i] = null; p.axIn = false;
   if (id === 'heli') {
-    const amt = earn((400 + S.day*10) * eqFee('heli'));
+    const amt = G.vol ? 0 : earn((400 + S.day*10) * eqFee('heli')); // 봉사 진료의 날은 무료
     addMoney(amt); G.stats.income += amt; G.stats.annexIncome += amt; G.stats.treated++; S.total++; S.life.heli++;
     addRep(1.5); const c = cardEl('annex'); if (c) floatAt(c, `🚁 +💰${amt}`); SFX.coin();
     removeP(p, 'bye'); checkTrophies(); return;
@@ -2082,6 +2082,10 @@ function prepDay() {
   G.heliTimes = G.ax.heli ? Array.from({length:rnd(1,2)}, () => rnd(30,140)).sort((a,b) => a-b) : [];
   hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
   showPrep();
+  // 새 기능이 처음 열리면 한 번씩 안내
+  const HINTS = [['eq',1,'⚙️ 이제 🛒 상점의 장비 탭에서 진료과·방 장비를 올릴 수 있어요!'],['lab',2,'🧪 의학 연구를 시작할 수 있어요! 영업 준비 화면의 🧪 연구'],
+    ['give',2,'🤝 기부와 봉사 진료의 날로 평판을 올릴 수 있어요'],['annex',3,'🏥 신관 공사를 시작할 수 있어요! 지도 아래 신관 카드를 톡']];
+  for (const [k, g, msg] of HINTS) if (S.grade >= g && !S.seen[k]) { S.seen[k] = S.day; toast(msg, 'ev'); }
   if (S.annex.justBuilt) { delete S.annex.justBuilt; save(); showAnnexDone(); }
   if (S.res.justDone) { const r = resById(S.res.justDone); delete S.res.justDone; save(); toast(`🧪 연구 완료! ${r.icon} ${r.name} — ${r.desc}`, 'lvl'); checkTrophies(); }
 }
@@ -2458,6 +2462,12 @@ function showGuide() {
       📚 연수: 직원 능력치를 올려요 (일하면서 크는 건 아주 천천히) · 📣 홍보: 종합병원부터<br>
       🧩 배치: 영업 준비 화면에서 크기가 같은 방끼리 자리를 바꿀 수 있어요<br>
       🎓 대학병원: 👂 이비인후과 · 🧠 신경과 · ⚕️ 수술실이 열려요</div>
+    <div class="box"><b>더 크게 키우기</b><br>
+      🏆 트로피: 업적마다 진료비 +1% (영구) · 영업 준비 화면의 🏆<br>
+      ⚙️ 장비: 상점 장비 탭, 진료과·방마다 Lv.10까지 (병원 3 · 종합병원 6 · 대학병원 10)<br>
+      🤝 기부 · 💗 봉사 진료의 날: 종합병원부터, 평판을 올려요<br>
+      🧪 연구: 종합병원부터, 한 번에 하나씩 며칠에 걸쳐 영구 보너스<br>
+      🏥 신관: 대학병원부터 5단계 공사 (돈을 더 내면 빨리). 👧 소아과 · 🚑 응급실 · 🦿 재활 · 💎 VIP 특실 · 🚁 헬기장은 알아서 굴러가요. 🧸 아이·🦿·💎 환자는 신관으로 알아서 가고, 직접 보내면 바로 가요</div>
     <div class="box"><b>⭐ 평판</b><br>
       ⭐3.0 진료비 +10% · ⭐4.0 +25% (VIP ↑) · ⭐4.5 +40% · ⭐4.8 +60%<br>
       평판이 높을수록 더 오르기 어렵고, 콤보가 끊기면 조금 떨어져요</div>
@@ -2509,7 +2519,7 @@ function startGame(s) {
   [...S.staff, ...S.cands].forEach(x => x.wage = wageOf(x)); // 일급 공식이 바뀌어도 이어하기 저장과 맞춤
   // 예전 저장에 없던 후반 콘텐츠 필드 보정 + 누적 기록으로 받을 수 있는 트로피는 조용히 지급
   S.eq = S.eq || {}; S.res = Object.assign({ done:{}, cur:null }, S.res); S.res.done = S.res.done || {};
-  S.annex = Object.assign({ lv:0, build:null }, S.annex); S.life = Object.assign(newLife(), S.life); S.troph = S.troph || {};
+  S.annex = Object.assign({ lv:0, build:null }, S.annex); S.life = Object.assign(newLife(), S.life); S.troph = S.troph || {}; S.seen = S.seen || {};
   checkTrophies(true);
   mapEl.innerHTML = ''; clearToasts();
   prepDay();
