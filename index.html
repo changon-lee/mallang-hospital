@@ -632,7 +632,7 @@ const BUY_ROOMS = {
 };
 const CLINIC_MUL = [1,1.25,1.5,1.8], CHAIRS = [4,6,8,10];
 const UPS = {
-  clinic:{ name:'진료실 장비', icon:'⚙️', prices:[400,900,1800], desc:l=>`진료 속도 ×${CLINIC_MUL[l]}` },
+  clinic:{ name:'진료실 기본 장비', icon:'⚙️', prices:[400,900,1800], desc:l=>`진료 속도 ×${CLINIC_MUL[l]}` },
   wait:  { name:'대기실 의자', icon:'🪑', prices:[250,600,1200], desc:l=>`의자 ${CHAIRS[l]}개` },
   ward:  { name:'입원실 침대', icon:'🛏️', prices:[600,1300,2400], desc:l=>`침대 ${2*(l+1)}개` },
 };
@@ -846,6 +846,20 @@ function genCands() {
   S.candDay = S.day;
 }
 
+/* ===================== ⚙️ 장비 ===================== */
+// 진료과·방마다 Lv.0~10. 레벨마다 처리 속도 +6% · 진료비 +3%. 등급마다 최대 레벨 제한
+const AX_IDS = ['peds','er','rehab','suite','heli'];
+const EQ_ROOMS = ['exam','inj','pharm','surg'];
+const eqLv = id => S.eq[id] || 0;
+const eqMax = () => [0,3,6,10][S.grade] || 0;
+const eqBase = id => DEPTS[id] ? 250 + DEPT_ORDER.indexOf(id)*40 : AX_IDS.includes(id) ? 600 : 300;
+const eqPrice = (id, lv) => Math.round(eqBase(id) * 1.45**lv / 10) * 10;
+const eqSpd = id => 1 + .06*eqLv(id);
+const eqFee = id => 1 + .03*eqLv(id);
+const eqName = (id, lv) => id === 'exam' && lv > 0 ? (lv <= 3 ? 'X-ray' : lv <= 6 ? 'CT' : 'MRI') : '★' + lv;
+function EQ_TARGETS() {
+  return [...DEPT_ORDER.filter(d => S.depts[d]), ...EQ_ROOMS.filter(r => r === 'pharm' || S.rooms[r]), ...AX_IDS.slice(0, S.annex.lv)];
+}
 /* ===================== 계산 ===================== */
 const availSyms = d => { const a = DEPTS[d].syms.filter(s => S.day >= s[1]).map(s=>s[0]); return a.length ? a : [DEPTS[d].syms[0][0]]; };
 const isLocked = id => DEPTS[id] ? !S.depts[id] : BUY_ROOMS[id] ? !S.rooms[id] : false;
@@ -1499,13 +1513,16 @@ function treatDur(r, i = 0) {
   const doc = slotDoctor(r, i) || doctorOf(r);
   let d = 7 / (.5 + .25*doc.spd) / CLINIC_MUL[S.up.clinic];
   if (doc.fat >= 100) d /= .65;
-  return d;
+  return d / eqSpd(r);
 }
 function svcDur(r) {
+  if (G.tut && r === 'pharm') return 2.5;
+  return baseSvcDur(r) / eqSpd(r);
+}
+function baseSvcDur(r) {
   if (r === 'exam') return 3.5;
   if (r === 'inj') return 4.5;
   if (r === 'surg') return 8;
-  if (G.tut) return 2.5;
   const ph = pharmacist();
   return ph ? 4 / (.5 + .25*ph.spd) * (ph.fat >= 100 ? 1.5 : 1) : 6;
 }
@@ -1554,7 +1571,7 @@ function svcStep(r, i, p) {
   }
   G.slots[r][i] = null;
   if (DEPTS[r]) {
-    p.fee += DEPTS[r].fee * (p.urg === 2 ? 2 : 1) * (p.emerg ? 1.5 : 1);
+    p.fee += DEPTS[r].fee * (p.urg === 2 ? 2 : 1) * (p.emerg ? 1.5 : 1) * eqFee(r);
     work(slotDoctor(r, i), 7);
     if (p.extra.length) {
       const nx = p.extra.shift();
@@ -1570,7 +1587,7 @@ function svcStep(r, i, p) {
     p.revealed = true; p.shown = p.sym; p.fee += 15; p.stage = 'reg';
     toSeat(p); updBub(p); say(p, '검사 결과 나왔어요! ' + p.sym); SFX.done();
   } else {
-    p.fee += r === 'pharm' ? 10 : r === 'surg' ? 120 + S.day*3 : 20;
+    p.fee += r === 'pharm' ? 10 : r === 'surg' ? (120 + S.day*3) * eqFee('surg') : 20;
     if (r === 'pharm') work(pharmacist(), 5);
     p.stage = 'pay'; toCash(p); updBub(p); SFX.done();
     if (G.tut === 5) setTut(6);
@@ -1992,7 +2009,7 @@ function adBoxHTML() {
 }
 function showShop(tab) {
   G.shopTab = tab = tab || G.shopTab || 'dept';
-  const T = [['dept','🩺','진료과'],['room','🏠','방·설비'],['deco','🪴','인테리어'],['staff','👩‍⚕️','직원']];
+  const T = [['dept','🩺','진료과'],['room','🏠','방·설비'],['eq','⚙️','장비'],['deco','🪴','인테리어'],['staff','👩‍⚕️','직원']];
   let body = '';
   if (tab === 'dept') {
     body = '<div class="sgrid">' + DEPT_ORDER.slice(1).map(id => {
@@ -2011,6 +2028,23 @@ function showShop(tab) {
         desc: max ? `${u.desc(lv)}<br>최고 단계예요! ✨` : `지금: ${u.desc(lv)}<br>다음: <b>${u.desc(lv+1)}</b>`,
         lab: max ? 'MAX ✨' : `⬆️ ${coin(u.prices[lv])}`, dis: max || S.money < u.prices[lv] });
     }).join('') + '</div>';
+  } else if (tab === 'eq') {
+    const mx = eqMax();
+    const sec = n => (Math.round(n*10)/10).toFixed(1) + '초';
+    const durAt = (id, lv) => { const k = (1 + .06*eqLv(id)) / (1 + .06*lv); return (DEPTS[id] ? treatDur(id) : svcDur(id)) * k; };
+    const nameOf = id => ROOMS[id] ? ROOMS[id].icon + ' ' + ROOMS[id].name : id;
+    body = (mx ? '' : `<div class="stip">🔒 장비는 ${GRADES[1]}부터 살 수 있어요 <button class="btn" data-act="grade:1">승급 방법 보기</button></div>`) +
+      '<div class="sgrid">' + EQ_TARGETS().map(id => {
+      const lv = eqLv(id), max = lv >= 10, cap = !max && lv >= mx, price = eqPrice(id, lv);
+      const hasDoc = !DEPTS[id] || doctorOf(id);
+      const spd = hasDoc ? `⏱️ ${sec(durAt(id, lv))}` + (lv < 10 ? ` → <b>${sec(durAt(id, lv+1))}</b>` : '') : '';
+      const feeAt = l => Math.round(DEPTS[id].fee*(1+.03*l));
+      const fee = DEPTS[id] ? `<br>💰 진료비 ${feeAt(lv)}` + (lv < 10 ? ` → <b>${feeAt(lv+1)}</b>` : '') : '';
+      return itemHTML({ icon:(ROOMS[id] || {icon:'⚙️'}).icon, name:`${nameOf(id).split(' ').slice(1).join(' ')} 장비`, tone:'mint',
+        tag:`Lv.${lv}/${Math.max(mx, lv)}${id === 'exam' && lv ? ' ' + eqName(id, lv) : ''}`, key:`eq:${id}`, own:max,
+        desc: `${spd}${fee}${max ? '<br>최고 단계예요! ✨' : id === 'exam' ? `<br><small>다음: ${eqName(id, lv+1)} 장비</small>` : ''}`,
+        lab: max ? 'MAX ✨' : cap ? `🔒 ${GRADES[Math.min(MAX_GRADE, S.grade+1)]} 승급 후` : `⬆️ ${coin(price)}`, dis: max || cap || S.money < price });
+    }).join('') + `</div><div class="stip">⚙️ 레벨마다 처리 속도 +6% · 진료비 +3% (진료과·수술) · 최대 레벨: 병원 3 · 종합병원 6 · 대학병원 10</div>`;
   } else if (tab === 'deco') {
     body = '<div class="sgrid">' + Object.keys(DECOS).map(id => {
       const d = DECOS[id], ps = priceState(S.deco[id], '설치 완료', d.grade, d.price);
@@ -2050,6 +2084,11 @@ function buy(key) {
     const u = UPS[id], lv = S.up[id];
     if (lv >= 3 || S.money < u.prices[lv]) return;
     S.money -= u.prices[lv]; S.up[id]++; msg = `${u.icon} ${u.name} 업그레이드! ${'★'.repeat(S.up[id])}`;
+  } else if (kind === 'eq') {
+    const lv = eqLv(id), c = eqPrice(id, lv);
+    if (!EQ_TARGETS().includes(id) || lv >= eqMax() || S.money < c) return;
+    S.money -= c; S.eq[id] = lv + 1;
+    msg = `⚙️ ${(ROOMS[id] || {name:id}).name} 장비 Lv.${lv+1}${id === 'exam' ? ' ' + eqName(id, lv+1) : ''}! 더 빨라졌어요`;
   } else if (kind === 'deco') {
     const d = DECOS[id];
     if (S.deco[id] || S.grade < d.grade || S.money < d.price) return;
