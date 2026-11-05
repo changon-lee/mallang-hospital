@@ -4,6 +4,7 @@ CASHIER = "S.staff.push(mkStaff('cashier',{spd:3,kind:2}))"
 
 
 def mk_payer(page):
+    js(page, "S.troph = {}")  # 트로피 보너스(+1%/개) 없이 팁 계산만 확인
     return js(page, "(() => { const p = spawn(true,{sym:'🤒',urg:0}); p.stage='pay'; p.fee=40; toCash(p); return p.id })()")
 
 

@@ -186,6 +186,11 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .modal{background:linear-gradient(180deg,#fffaf3,#fff4ea);border:4px solid #fff;border-radius:30px;max-width:540px;width:100%;max-height:92vh;max-height:92dvh;overflow:auto;padding:22px 18px 18px;font-size:1rem;
   box-shadow:0 0 0 3px #ffd6e0,0 8px 0 3px #f3b9c9,0 22px 44px #5b4a6040;animation:drop .4s cubic-bezier(.3,1.5,.5,1)}
 .modal.wide{max-width:680px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin:10px 0}
+.troph{border-radius:14px;padding:8px 6px;text-align:center;display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:1.3}
+.troph .ti{font-size:26px}.troph small{color:#8a7a86}.troph em{font-style:normal;font-size:11px;font-weight:800;color:#c27a9a}
+.troph.own{background:linear-gradient(#fff6d8,#ffe9b0);box-shadow:0 2px 0 #f0c96a}
+.troph.lock{background:#f3eef2;opacity:.75}.troph.lock .ti{filter:grayscale(1)}
 .modal h2{margin:.05em 0 .35em;font-size:1.6rem;text-align:center;color:#d9668b;text-shadow:0 3px 0 #ffe0e8;font-weight:900}
 .modal .sub{text-align:center;color:#9b8a9f;margin:0 0 12px;font-size:1rem;line-height:1.55;font-weight:600}
 .btn{border-radius:99px;padding:.65em 1.3em;font-weight:900;background:#fff;border:3px solid #f1e4d8;box-shadow:0 4px 0 #f1e4d8;transition:transform .1s}
@@ -734,17 +739,19 @@ const SFX = {
 let S = null; // 저장되는 상태
 let G = null; // 하루 동안의 실행 상태
 
+const newLife = () => ({ maxCombo:0, emergOk:0, karenCalm:0, vip:0, heli:0, bestDay:0, perfectDays:0, volDays:0 });
 function newState() {
   const s = { v:2, day:1, money:300, rep:30, stars:0, grade:0, total:0,
     depts:{int:true}, rooms:{exam:false,inj:false,rest:false,surg:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
-    staff:[], cands:[], candDay:0, tut:false, nextId:1, lay:{} };
+    staff:[], cands:[], candDay:0, tut:false, nextId:1, lay:{},
+    eq:{}, res:{done:{},cur:null}, annex:{lv:0,build:null}, donated:0, volLast:-99, life:newLife(), troph:{} };
   S = s;
   s.staff.push(mkStaff('doctor', {dept:'int', animal:'🐻', spd:2, kind:2}));
   return s;
 }
 function newG() {
   return { mode:'idle', speed:1, modal:false, t:0, spawnT:2, pid:0, patients:[], dirt:[], dirtT:16,
-    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0},
+    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0,trophBonus:0},
     goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
     entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0,
     layEdit:null, blWarn:{} };
@@ -876,6 +883,68 @@ function repTierHTML() {
   const t = repTier(), nx = REP_TIERS.find(x => S.rep < x.rep);
   const now = t ? `${t.icon} <b>${t.name}</b> · 진료비 <b>+${repPct(t)}%</b>${t.vip ? ' · VIP ↑' : ''}` : '평판 보너스 없음';
   return `⭐ ${now}${nx ? `<br><small>다음: ${nx.icon} ${nx.name} (⭐${repStars(nx.rep)}) 진료비 +${repPct(nx)}% · 콤보가 끊기면 평판이 조금 떨어져요</small>` : ''}`;
+}
+/* ===================== 🏆 트로피 ===================== */
+// 트로피 하나마다 진료비 +1% (영구). 수입 배율은 incomeMul() 하나로만 계산
+const nOf = o => Object.keys(o || {}).length;
+const TROPHIES = [
+  ['first','🩹','첫 치료','환자 1명 치료', () => [S.total, 1]],
+  ['t100','🐾','동네 명물','누적 100명 치료', () => [S.total, 100]],
+  ['t500','🏅','믿음직한 병원','누적 500명 치료', () => [S.total, 500]],
+  ['t1000','🏆','천 명의 미소','누적 1000명 치료', () => [S.total, 1000]],
+  ['combo20','🔥','콤보 20','한 번에 콤보 20', () => [S.life.maxCombo, 20]],
+  ['combo40','🌋','콤보 40','한 번에 콤보 40', () => [S.life.maxCombo, 40]],
+  ['day5k','💰','하루 매출 5천','하루 진료 수입 5,000', () => [S.life.bestDay, 5000]],
+  ['day10k','💎','하루 매출 1만','하루 진료 수입 10,000', () => [S.life.bestDay, 10000]],
+  ['day20k','👑','하루 매출 2만','하루 진료 수입 20,000', () => [S.life.bestDay, 20000]],
+  ['perfect','💕','완벽한 하루','15명 넘게 치료하고 화난 환자 0명', () => [S.life.perfectDays, 1]],
+  ['emerg10','🚑','응급 구조대','응급 환자 누적 10명 구조', () => [S.life.emergOk, 10]],
+  ['emerg50','🦸','생명의 은인','응급 환자 누적 50명 구조', () => [S.life.emergOk, 50]],
+  ['karen20','🕶️','진상 조련사','진상 달래기 누적 20번', () => [S.life.karenCalm, 20]],
+  ['vip30','🎩','VIP 단골','VIP 누적 30명', () => [S.life.vip, 30]],
+  ['grade1','🏠','병원 승급','병원으로 승급', () => [S.grade, 1]],
+  ['grade2','🏢','종합병원','종합병원으로 승급', () => [S.grade, 2]],
+  ['grade3','🎓','대학병원','대학병원으로 승급', () => [S.grade, 3]],
+  ['alldept','🩺','모든 진료과','진료과 8개 모두 오픈', () => [DEPT_ORDER.filter(d => S.depts[d]).length, DEPT_ORDER.length]],
+  ['legend','🌟','전설의 병원','평판 ⭐4.8 달성', () => [S.rep >= 96 ? 1 : 0, 1]],
+  ['donate10k','🤝','따뜻한 손길','누적 기부 10,000', () => [S.donated, 10000]],
+  ['vol3','💗','봉사왕','봉사 진료의 날 3번', () => [S.life.volDays, 3]],
+  ['res6','🧪','연구하는 병원','연구 6개 완료', () => [nOf(S.res.done), 6]],
+  ['resAll','🔬','의학의 정점','연구 12개 모두 완료', () => [nOf(S.res.done), 12]],
+  ['eq10','⚙️','최첨단 장비','장비 하나를 Lv.10까지', () => [Math.max(0, ...Object.values(S.eq)), 10]],
+  ['annex1','🏗️','신관 첫 삽','신관 1단계 완공', () => [S.annex.lv, 1]],
+  ['annexAll','🏥','메디컬 센터','신관 5단계 모두 완공', () => [S.annex.lv, 5]],
+  ['heli10','🚁','하늘길 구조','헬기 환자 10명', () => [S.life.heli, 10]],
+  ['staff15','👪','대가족','직원 15명 이상', () => [S.staff.length, 15]],
+].map(([id, icon, name, desc, prog]) => ({ id, icon, name, desc, prog, check:() => { const [a, b] = prog(); return a >= b; } }));
+const trophyCount = () => TROPHIES.filter(t => S.troph[t.id]).length;
+const trophyMul = () => 1 + .01 * nOf(S.troph);
+let resFeeMul = () => 1;
+const incomeMul = () => repMul() * trophyMul() * resFeeMul();
+// 수입 한 건: 배율을 곱하고 평판·트로피 몫을 결산용으로 따로 모음
+function earn(base) {
+  const total = Math.round(base * incomeMul()), rp = Math.round(base * repMul()), tp = Math.round(base * repMul() * trophyMul());
+  if (G && G.stats) { G.stats.repBonus += rp - base; G.stats.trophBonus += tp - rp; }
+  return total;
+}
+function checkTrophies(silent = false) {
+  const got = [];
+  for (const t of TROPHIES) if (!S.troph[t.id] && t.check()) { S.troph[t.id] = S.day; got.push(t.id); }
+  if (!silent) for (const id of got) { const t = TROPHIES.find(x => x.id === id); toast(`🏆 트로피 획득! ${t.icon} ${t.name} (진료비 +1%)`, 'lvl'); }
+  if (got.length && G && !silent) (G.newTroph = G.newTroph || []).push(...got);
+  return got;
+}
+function showTrophies() {
+  if (G.mode === 'play') G.modal = true;
+  const n = trophyCount();
+  const card = t => {
+    const own = !!S.troph[t.id], [a, b] = t.prog();
+    return `<div class="troph ${own ? 'own' : 'lock'}"><div class="ti">${own ? t.icon : '❔'}</div><b>${t.name}</b><small>${t.desc}</small>
+      ${own ? `<em>${S.troph[t.id]}일차 ✨</em>` : b > 1 ? `<em>${fmtN(Math.min(a, b))} / ${fmtN(b)}</em>` : '<em>도전 중</em>'}</div>`;
+  };
+  openModal(`<h2>🏆 트로피 홀</h2><p class="sub">모은 트로피 <b>${n}</b> / ${TROPHIES.length} · 진료비 <b>+${n}%</b> (영구)</p>
+    <div class="tgrid">${TROPHIES.map(card).join('')}</div>
+    <div class="brow"><button class="btn pri" data-act="trophyClose">닫기</button></div>`, 'wide');
 }
 function gradeProgress() {
   if (S.grade >= MAX_GRADE) return '최고 등급이에요! 👑';
@@ -1305,7 +1374,7 @@ function updKaren(dt) {
 function calmKaren(p) {
   p.calm++; SFX.calm(); floatAt(p.el, pick(['💬','🙏','😊']), 's');
   if (p.calm < 4) return;
-  p.tantrum = false; p.calmed++; p.el.classList.remove('tantrum'); G.stats.karenCalm++;
+  p.tantrum = false; p.calmed++; p.el.classList.remove('tantrum'); G.stats.karenCalm++; S.life.karenCalm++;
   p.tantrumT = rnd(12,18); addRep(.5); SFX.reg();
   say(p, p.calmed >= 2 ? '…원장님 덕분에 기분 풀렸어요 😌' : '흠… 알겠어요.', 2000);
 }
@@ -1343,13 +1412,12 @@ function pay(p, opt = {}) {
   if (p.stage !== 'pay') return;
   const fast = !opt.auto && G.t - p.cashT < 4 ? 5 : 0;
   const tip = (p.karen ? 0 : Math.round(p.fee * .25 * p.pat / 100) + fast) + extraPay(p);
-  const base = p.fee + tip, total = Math.round(base * repMul());
-  G.stats.repBonus += total - base;
+  const total = earn(p.fee + tip);
   addMoney(total); G.stats.income += total; G.stats.treated++; S.total++;
-  if (p.vip) G.stats.vip++;
+  if (p.vip) { G.stats.vip++; S.life.vip++; }
   addRep(p.vip ? 1.5 : p.karen ? 1.5 : .45);
   if (p.multi) setTimeout(() => p.el.isConnected && floatAt(p.el, '복합 진료 완료! +20', 's'), 300);
-  G.combo++; G.maxCombo = Math.max(G.maxCombo, G.combo);
+  G.combo++; G.maxCombo = Math.max(G.maxCombo, G.combo); S.life.maxCombo = Math.max(S.life.maxCombo, G.combo);
   floatAt(p.el, `+💰${total}`);
   if (fast) setTimeout(() => p.el.isConnected && floatAt(p.el, '빠른 수납 팁 ✨', 's'), 150);
   SFX.coin();
@@ -1359,6 +1427,7 @@ function pay(p, opt = {}) {
     toast(`${G.combo}콤보! 친절 병원 ✨ +💰${b}`, 'combo'); SFX.combo();
   }
   removeP(p, 'bye');
+  checkTrophies();
   if (G.tut === 6) setTut(7);
 }
 
@@ -1479,7 +1548,7 @@ function svcStep(r, i, p) {
     }
     if (!ok) { G.slots[r][i] = null; p.stage = 'reg'; p.target = null; wrongMove(p); toSeat(p); updBub(p); return; }
     p.phase = 'treat'; p.svc = 0; p.dur = treatDur(r, i);
-    if (p.emerg && !p.saved) { p.saved = true; G.stats.emergOk++; addRep(2); toast('🚑 응급 처치 시작! 원장님 최고예요 ✨', 'lvl'); SFX.combo(); }
+    if (p.emerg && !p.saved) { p.saved = true; G.stats.emergOk++; S.life.emergOk++; addRep(2); toast('🚑 응급 처치 시작! 원장님 최고예요 ✨', 'lvl'); SFX.combo(); }
     if (G.tut === 2) setTut(3);
     return;
   }
@@ -1738,6 +1807,7 @@ function showPrep() {
       <button class="btn" data-act="shop:staff">👩‍⚕️ 직원</button>
       <button class="btn" data-act="roster">👥 명부</button>
       <button class="btn" data-act="layout">🧩 배치</button>
+      <button class="btn" data-act="trophy">🏆 트로피</button>
       <button class="btn" data-act="guide">📖 증상표</button>
       <button class="btn" data-act="sound">${OPT.sound?'🔊':'🔇'}</button>
     </div>
@@ -1759,13 +1829,11 @@ function endDay() {
   G.mode = 'summary'; deselect(); hideCoach(); setSpeed(1);
   const st = G.stats;
   let autoPay = 0;
-  const rm = repMul();
   for (const p of G.patients.slice()) {
-    if (p.stage === 'pay') { const a = Math.round(p.fee * rm); st.repBonus += a - p.fee; addMoney(a); st.income += a; st.treated++; S.total++; if (p.vip) st.vip++; addRep(.5); autoPay++; removeP(p, 'bye'); }
+    if (p.stage === 'pay') { const a = earn(p.fee); addMoney(a); st.income += a; st.treated++; S.total++; if (p.vip) { st.vip++; S.life.vip++; } addRep(.5); autoPay++; removeP(p, 'bye'); }
     else if (p.stage === 'ward') {
-      const b = p.fee + 120 + S.day*6 + extraPay(p), amt = Math.round(b * rm);
-      st.repBonus += amt - b;
-      addMoney(amt); st.income += amt; st.wardIncome += amt; st.wardN++; st.treated++; S.total++; if (p.vip) st.vip++;
+      const amt = earn(p.fee + 120 + S.day*6 + extraPay(p));
+      addMoney(amt); st.income += amt; st.wardIncome += amt; st.wardN++; st.treated++; S.total++; if (p.vip) { st.vip++; S.life.vip++; }
       addRep(1.5); floatAt(p.el, `+💰${amt}`); removeP(p, 'bye');
     } else removeP(p, 'bye');
   }
@@ -1785,8 +1853,11 @@ function endDay() {
   SFX.day(); updateHUD();
   const dayNo = S.day;
   // 결산 즉시 다음 날로 넘겨 저장 (결산 화면에서 메인으로 나가도 오늘 기록이 남음)
+  S.life.bestDay = Math.max(S.life.bestDay, st.income);
+  if (st.treated >= 15 && st.angry === 0) S.life.perfectDays++;
   S.day++; S.staff.forEach(s => { s.fat = 0; s.rest = 0; s.t = 0; });
-  G.promo = checkPromo(); genCands(); save();
+  G.promo = checkPromo(); checkTrophies(); genCands(); save();
+  const nt = (G.newTroph || []).map(id => TROPHIES.find(t => t.id === id));
   const row = (a, b, cls='') => `<div class="row"><span>${a}</span><b class="${cls}">${b}</b></div>`;
   const html = `<h2>🌙 ${dayNo}일차 영업 끝!</h2><p class="sub">${cmt}</p>
     <div class="box">
@@ -1802,6 +1873,7 @@ function endDay() {
       ${row('진료 수입', `+💰${fmtN(st.income - st.wardIncome)}`, 'plus')}
       ${st.wardIncome ? row('입원 퇴원비', `+💰${fmtN(st.wardIncome)}`, 'plus') : ''}
       ${st.repBonus ? row('　└ ⭐ 평판 보너스 (포함)', `+💰${fmtN(st.repBonus)}`, 'plus') : ''}
+      ${st.trophBonus ? row('　└ 🏆 트로피 보너스 (포함)', `+💰${fmtN(st.trophBonus)}`, 'plus') : ''}
       ${bonus ? row('목표 보너스', `+💰${fmtN(bonus)}`, 'plus') : ''}
       ${row(`직원 일급 (${S.staff.length}명)`, `-💰${fmtN(wages)}`, 'minus')}
       ${st.fine ? row('위생 벌금', `-💰${fmtN(st.fine)}`, 'minus') : ''}
@@ -1809,6 +1881,7 @@ function endDay() {
       <div class="row tot"><span>순이익</span><b class="${net >= 0 ? 'plus' : 'minus'}">${net >= 0 ? '+' : ''}💰${fmtN(net)}</b></div>
     </div>
     <div class="box"><b>🎯 오늘의 목표</b><br>${res.map(([g, ok]) => `${ok ? '✅' : '❌'} ${goalText(g)} ${ok ? '<span class="stars">+🌟</span>' : ''}`).join('<br>')}</div>
+    ${nt.length ? `<div class="box"><b>🏆 오늘 받은 트로피</b><br>${nt.map(t => `${t.icon} ${t.name}`).join(' · ')}<br><small>트로피마다 진료비 +1%</small></div>` : ''}
     <div class="box">⭐ 평판 ${repStars(G.repStart)} → <b>${repStars(S.rep)}</b> <small>(${dRep >= 0 ? '+' : ''}${(dRep/20).toFixed(2)})</small>${repMsg ? '<br>' + repMsg : ''}</div>
     <div class="brow"><button class="btn pri big" data-act="sumOk">다음 날로 🌙</button></div>`;
   G.back = () => openModal(html); // 🏠 메뉴에서 '계속하기'를 누르면 결산 화면으로 복귀
@@ -2072,6 +2145,10 @@ function showTitle() {
 function startGame(s) {
   S = s; $('#title').classList.add('hidden');
   [...S.staff, ...S.cands].forEach(x => x.wage = wageOf(x)); // 일급 공식이 바뀌어도 이어하기 저장과 맞춤
+  // 예전 저장에 없던 후반 콘텐츠 필드 보정 + 누적 기록으로 받을 수 있는 트로피는 조용히 지급
+  S.eq = S.eq || {}; S.res = Object.assign({ done:{}, cur:null }, S.res); S.res.done = S.res.done || {};
+  S.annex = Object.assign({ lv:0, build:null }, S.annex); S.life = Object.assign(newLife(), S.life); S.troph = S.troph || {};
+  checkTrophies(true);
   mapEl.innerHTML = ''; clearToasts();
   prepDay();
 }
@@ -2110,6 +2187,8 @@ function act(a) {
     case 'rosterClose': closeRoster(); break;
     case 'rename': startRename(+v); break;
     case 'layout': startLayEdit(); break;
+    case 'trophy': showTrophies(); break;
+    case 'trophyClose': closeGuide(); break;
     case 'layDone': endLayEdit(); break;
     case 'layReset': resetLayout(); break;
     case 'menuNo': closeModal(); G.modal = false; if (G.mode === 'prep') showPrep(); else if (G.mode === 'summary' && G.back) G.back(); break;
