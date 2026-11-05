@@ -190,3 +190,64 @@ def test_volunteer_rep_and_combo(page_at):
     js(page, "Math.random = () => 0.5")
     base = js(page, "G.vol = false, spawnInterval()")
     assert abs(js(page, "G.vol = true, spawnInterval()") - base / 1.3) < 1e-9
+
+
+# ---------- Task 4: 연구 ----------
+
+def test_research_gating(page_at):
+    page = page_at(); boot(page, grade=1, day=10, money=50000)
+    js(page, "prepDay(); act('res:diag')")
+    assert js(page, "S.res.cur") is None and js(page, "S.money") == 50000
+    page2 = page_at(); boot(page2, grade=2, day=10, money=50000)
+    js(page2, "prepDay(); act('res:exam2')")
+    assert js(page2, "S.res.cur") is None
+    js(page2, "act('res:diag')")
+    assert js(page2, "S.res.cur") == {'id': 'diag', 'left': 1} and js(page2, "S.money") == 47000
+    js(page2, "act('res:kind')")
+    assert js(page2, "S.res.cur.id") == 'diag' and js(page2, "S.money") == 47000
+    js(page2, "act('start'); act('res:kind')")
+    assert js(page2, "S.money") == 47000
+
+
+def test_research_completes_after_days(page_at):
+    page = page_at(); boot(page, grade=2, day=10, money=50000)
+    js(page, "prepDay(); act('res:diag'); act('start'); setSpeed(0); G.goals = []; G.t = 181; update(.1)")
+    assert js(page, "G.mode") == 'summary' and js(page, "hasRes('diag')") is True
+    assert '연구비' in page.locator('.modal').inner_text()
+    js(page, SPY); js(page, "act('sumOk')")
+    assert any('연구 완료' in h for h in js(page, "_T"))
+    js(page, "act('res:exam2')")
+    assert js(page, "S.res.cur.id") == 'exam2'
+
+
+def test_research_effects_exact(page_at):
+    page = page_at(); boot(page, grade=2, day=10, rooms={'exam': True})
+    js(page, "S.troph = {}; S.res.done = {}")
+    t0 = js(page, "treatDur('int')"); ph0 = js(page, "svcDur('pharm')")
+    nav0 = js(page, "navInt({spd:3})"); em0 = js(page, "emergLimit()")
+    js(page, "S.res.done = {diag:1, exam2:1, drug:1, smart:1, erp:1, mgmt:1}")
+    assert abs(js(page, "treatDur('int')") - t0 * .9) < 1e-9
+    assert abs(js(page, "svcDur('exam')") - 3.5 * .7) < 1e-9
+    assert abs(js(page, "svcDur('pharm')") - ph0 * .75) < 1e-9
+    assert abs(js(page, "navInt({spd:3})") - nav0 * .8) < 1e-9
+    assert js(page, "emergLimit()") == em0 + 8
+    js(page, "S.rep = 30")
+    pid = pay_ready(page, vip=False, karen=False, multi=False)
+    m0 = js(page, "S.money"); do_pay(page, pid)
+    assert js(page, "S.money") - m0 == 110
+
+
+def test_ax_branch_needs_annex(page_at):
+    page = page_at(); boot(page, grade=3, day=15, money=99999)
+    js(page, "prepDay(); act('res:play')")
+    assert js(page, "S.res.cur") is None
+    js(page, "S.annex.lv = 1; act('res:play')")
+    assert js(page, "S.res.cur.id") == 'play'
+
+
+def test_lab_window_lists_branches(page_at):
+    page = page_at(); boot(page, grade=2, day=10)
+    js(page, "prepDay(); showResearch()")
+    txt = page.locator('.modal').inner_text()
+    for w in ['진료', '운영', '신관', '→', '신속 진단']:
+        assert w in txt
