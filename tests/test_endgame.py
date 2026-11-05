@@ -251,3 +251,73 @@ def test_lab_window_lists_branches(page_at):
     txt = page.locator('.modal').inner_text()
     for w in ['진료', '운영', '신관', '→', '신속 진단']:
         assert w in txt
+
+
+# ---------- Task 5: 신관 공사 ----------
+
+ALLD = {'ort': True, 'eye': True, 'den': True, 'skin': True, 'obgy': True, 'ear': True, 'neu': True}
+ALLR = {'exam': True, 'inj': True, 'rest': True, 'surg': True}
+CARDS_FIT = "[...document.querySelectorAll('#map .card')].every(c => c.scrollHeight <= c.clientHeight + 1)"
+PZ = "parseFloat(getComputedStyle(mapEl).getPropertyValue('--pz'))"
+
+
+def end_day(page):
+    js(page, "act('start'); setSpeed(0); G.goals = []; G.t = 181; update(.1)")
+    assert js(page, "G.mode") == 'summary'
+
+
+def test_annex_card_only_at_grade3(page_at):
+    page = page_at(); boot(page, grade=2)
+    assert page.locator('.card[data-room=annex]').count() == 0
+    page2 = page_at(); boot(page2, grade=3)
+    assert page2.locator('.card[data-room=annex]').count() == 1
+    assert page2.locator('.card[data-room=annex] .axs.off').count() == 5
+
+
+def test_build_and_rush(page_at):
+    page = page_at(); boot(page, grade=3, money=100000)
+    js(page, "prepDay(); act('axBuild')")
+    assert js(page, "S.money") == 92000 and js(page, "S.annex.build") == {'stage': 0, 'left': 3}
+    js(page, "act('axRush')")
+    assert js(page, "S.money") == 92000 - 2800 and js(page, "S.annex.build.left") == 2
+    js(page, "act('axRush'); act('axRush')")
+    assert js(page, "S.annex.lv") == 1 and js(page, "S.annex.build") is None
+    assert js(page, "S.money") == 92000 - 2800 * 3
+    assert page.locator('.axs[data-ax=peds]:not(.off)').count() == 1
+
+
+def test_build_progresses_daily_and_upkeep(page_at):
+    page = page_at(); boot(page, grade=3, money=100000)
+    js(page, "prepDay(); act('axBuild')")
+    end_day(page)
+    assert '공사비' in page.locator('.modal').inner_text()
+    js(page, "act('sumOk')"); end_day(page); js(page, "act('sumOk')"); end_day(page)
+    assert js(page, "S.annex.lv") == 1
+    js(page, "act('sumOk')")
+    assert '완공' in page.locator('.modal').inner_text()
+    end_day(page)
+    txt = page.locator('.modal').inner_text()
+    assert '신관 운영비' in txt and '-💰200' in txt
+
+
+def test_build_blocked_during_play(page_at):
+    page = page_at(); boot(page, grade=3, money=100000)
+    js(page, "act('axBuild')")
+    assert js(page, "S.annex.build") is None and js(page, "S.money") == 100000
+
+
+def test_annex_window(page_at):
+    page = page_at(); boot(page, grade=3, money=100000)
+    js(page, "prepDay(); showAnnex()")
+    txt = page.locator('.modal').inner_text()
+    for w in ['소아과', '응급실', '재활치료실', 'VIP 특실', '헬기장', '8,000']:
+        assert w in txt
+
+
+def test_annex_fits_screen(page_at):
+    # 신관 카드가 들어와도 방이 많이 작아지지 않음 (추가 전 기준: 1440x900 39 · 390x744 22)
+    for size, base in [((1440, 900), 39), ((390, 744), 22)]:
+        page = page_at(size); boot(page, grade=3, depts=ALLD, rooms=ALLR)
+        js(page, "S.annex.lv = 5; buildMap(); applyLayout()")
+        assert js(page, CARDS_FIT), size
+        assert js(page, PZ) >= base * .85, (size, js(page, PZ))

@@ -1,6 +1,6 @@
 from conftest import boot, js
 
-ALL = ['ent', 'wait', 'cash', 'rest', 'int', 'ort', 'eye', 'den', 'skin', 'obgy', 'ear', 'neu', 'exam', 'inj', 'pharm', 'ward', 'surg']
+ALL = ['ent', 'wait', 'cash', 'rest', 'int', 'ort', 'eye', 'den', 'skin', 'obgy', 'ear', 'neu', 'exam', 'inj', 'pharm', 'ward', 'surg', 'annex']
 
 
 def test_promote_to_university(page_at):

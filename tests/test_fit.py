@@ -29,7 +29,8 @@ def test_no_scroll_and_min_size(page_at, w, h, grade):
     assert js(page, NO_SCROLL)
     assert js(page, CARDS_FIT)
     # 세로 폰·PC는 22px 이상. 높이 500px 미만 가로 폰은 스크롤만 없으면 됨 (Ruling, ledger 참고)
-    assert js(page, PZ) >= (22 if h >= 500 else 16)
+    # 대학병원 세로 폰은 신관 줄(얇은 한 줄)이 더해져 20px 이상 (Ruling: endgame Task 5)
+    assert js(page, PZ) >= ((20 if grade == 3 and w < h else 22) if h >= 500 else 16)
     shots = pathlib.Path(__file__).parent / '_shots'; shots.mkdir(exist_ok=True)
     page.screenshot(path=str(shots / f'g{grade}_{w}x{h}.png'))
 

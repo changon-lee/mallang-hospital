@@ -197,6 +197,16 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .rnode small{color:#7d6f79}.rnode em{font-style:normal;font-weight:800;font-size:12px;color:#c27a9a}.rnode em.ok{color:#2f9a74}
 .rnode.done{background:#eafaf2}.rnode.cur{background:#fff6d8}.rnode.lock{opacity:.6}
 @media (max-width:560px){.rgrid{grid-template-columns:1fr}}
+.axlist{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.c-annex{background:linear-gradient(180deg,#e6f4ff,#fff)}
+.axcb{align-items:stretch}
+.axslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(calc(var(--pz)*2.3),1fr));gap:4px;width:100%;align-content:stretch}
+.axs{position:relative;border-radius:10px;background:#fff;border:2px solid #cfe6f7;display:flex;align-items:center;justify-content:center;gap:0 3px;min-width:0;font-size:max(9px,calc(var(--pz)*.36));line-height:1.15;padding:1px 4px 3px;white-space:nowrap}
+.axs b{flex:0 1 auto;min-width:0}
+.axs i{font-style:normal;font-size:calc(var(--pz)*.62);line-height:1.1}
+.axs b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.axs .axst{font-weight:800;color:var(--muted)}
+.axs.off{background:#f3f3f3;border-style:dashed;opacity:.75}.axs.off i{filter:grayscale(1)}
 .modal h2{margin:.05em 0 .35em;font-size:1.6rem;text-align:center;color:#d9668b;text-shadow:0 3px 0 #ffe0e8;font-weight:900}
 .modal .sub{text-align:center;color:#9b8a9f;margin:0 0 12px;font-size:1rem;line-height:1.55;font-weight:600}
 .btn{border-radius:99px;padding:.65em 1.3em;font-weight:900;background:#fff;border:3px solid #f1e4d8;box-shadow:0 4px 0 #f1e4d8;transition:transform .1s}
@@ -627,7 +637,7 @@ const DEPT_ORDER = ['int','ort','eye','den','skin','obgy','ear','neu'];
 const ROOMS = {
   ent:{name:'입구·접수',icon:'🚪'}, wait:{name:'대기실',icon:'🪑'}, cash:{name:'수납',icon:'💰'},
   pharm:{name:'약국',icon:'💊'}, inj:{name:'주사실',icon:'💉'}, exam:{name:'검사실',icon:'🩻'},
-  ward:{name:'입원실',icon:'🛏️'}, rest:{name:'휴게실',icon:'☕'}, surg:{name:'수술실',icon:'⚕️'}, more:{name:'확장 예정',icon:'🏗️'},
+  ward:{name:'입원실',icon:'🛏️'}, rest:{name:'휴게실',icon:'☕'}, surg:{name:'수술실',icon:'⚕️'}, more:{name:'확장 예정',icon:'🏗️'}, annex:{name:'신관',icon:'🏥'},
 };
 for (const d of DEPT_ORDER) ROOMS[d] = { name:DEPTS[d].name, icon:DEPTS[d].icon };
 const BUY_ROOMS = {
@@ -683,13 +693,13 @@ const LAYOUT = {
     ['ent wait wait cash','int ort exam pharm','inj ward ward more'],
     ['ent wait wait cash rest','int ort eye den pharm','exam inj ward ward more'],
     ['ent wait wait wait cash rest','int ort eye den skin pharm','exam obgy inj ward ward ward'],
-    ['ent wait wait cash int ort surg','rest wait wait eye den skin ward','pharm obgy ear neu exam inj ward'],
+    ['ent wait wait cash int ort surg','rest wait wait eye den skin ward','pharm obgy ear neu exam inj ward','annex annex annex annex annex annex annex'],
   ],
   narrow: [
     ['ent wait wait','cash wait wait','int ort pharm','exam inj pharm','ward ward more'],
     ['ent wait wait','cash wait wait','int ort eye','den exam pharm','inj rest pharm','ward ward more','ward ward more'],
     ['ent wait wait','cash wait wait','int ort eye','den skin obgy','exam inj pharm','ward ward pharm','ward ward rest'],
-    ['ent wait wait','cash wait wait','int ort eye','den skin obgy','ear neu exam','inj surg pharm','ward ward pharm','ward ward rest'],
+    ['ent wait wait','cash wait wait','int ort eye','den skin obgy','ear neu exam','inj surg pharm','ward ward pharm','ward ward rest','annex annex annex'],
   ],
 };
 const ENT_CAP = 8, DAY_LEN = 180, SPAWN_END = 168;
@@ -760,7 +770,7 @@ function newG() {
     combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0,trophBonus:0},
     goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
     entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0,
-    layEdit:null, blWarn:{}, donated:0, vol:false };
+    layEdit:null, blWarn:{}, donated:0, vol:false, buildCost:0 };
 }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
@@ -866,6 +876,68 @@ const eqName = (id, lv) => id === 'exam' && lv > 0 ? (lv <= 3 ? 'X-ray' : lv <= 
 function EQ_TARGETS() {
   return [...DEPT_ORDER.filter(d => S.depts[d]), ...EQ_ROOMS.filter(r => r === 'pharm' || S.rooms[r]), ...AX_IDS.slice(0, S.annex.lv)];
 }
+/* ===================== 🏗️ 신관 ===================== */
+// 대학병원부터 5단계 공사. 칸마다 전담 직원이 함께 와서 알아서 굴러감 (운영비만 매일 나감)
+const ANNEX = [
+  { id:'peds',  icon:'👧', name:'소아과',     cost:8000,  days:3, upkeep:200, desc:'아이 환자(🧸)가 와요. 접수하면 알아서 소아과로 가요' },
+  { id:'er',    icon:'🚑', name:'응급실',     cost:14000, days:3, upkeep:300, desc:'구급차 환자가 하루 2명 더 와요. 응급 환자를 신관으로 보내면 바로 처치!' },
+  { id:'rehab', icon:'🦿', name:'재활치료실', cost:20000, days:4, upkeep:350, desc:'정형외과·신경과·수술 후 일부 환자가 재활(🦿)을 받고 가요' },
+  { id:'suite', icon:'💎', name:'VIP 특실',   cost:28000, days:4, upkeep:450, desc:'VIP가 특실에 입원해서 퇴원비를 2배로 내요' },
+  { id:'heli',  icon:'🚁', name:'헬기장',     cost:38000, days:5, upkeep:600, desc:'가끔 헬기 환자가 날아와요. 알아서 치료하고 큰돈을 내요' },
+];
+const axBuilt = id => AX_IDS.indexOf(id) >= 0 && AX_IDS.indexOf(id) < S.annex.lv;
+const rushCost = () => S.annex.build ? Math.ceil(ANNEX[S.annex.build.stage].cost * .35) : 0;
+const axUpkeep = () => ANNEX.slice(0, S.annex.lv).reduce((a, x) => a + x.upkeep, 0);
+function startBuild() {
+  const a = ANNEX[S.annex.lv];
+  if (G.mode !== 'prep' || S.grade < 3 || S.annex.build || !a || S.money < a.cost) return;
+  S.money -= a.cost; G.buildCost += a.cost; S.annex.build = { stage:S.annex.lv, left:a.days };
+  SFX.buy(); toast(`🏗️ ${a.name} 공사 시작! ${a.days}일 걸려요 (돈을 더 내면 빨리 지어요)`);
+  save(); updateHUD(); refreshAnnex();
+}
+function rushBuild() {
+  const b = S.annex.build, c = rushCost();
+  if (G.mode !== 'prep' || !b || S.money < c) return;
+  S.money -= c; G.buildCost += c; b.left--; SFX.buy();
+  if (b.left <= 0) { completeBuild(true); return; }
+  toast(`⚡ 공사를 서둘렀어요! 남은 공사 ${b.left}일`); save(); updateHUD(); refreshAnnex();
+}
+function completeBuild(now) {
+  S.annex.lv++; S.annex.build = null; S.annex.justBuilt = true;
+  checkTrophies();
+  if (now) { delete S.annex.justBuilt; save(); buildMap(); applyLayout(); updateHUD(); showAnnexDone(); }
+}
+function refreshAnnex() {
+  const c = cardEl('annex'); if (c) { setH(c, cardHTML('annex')); }
+  if (document.querySelector('.modal.annex')) showAnnex(); else if (G.mode === 'prep') showPrep();
+}
+function showAnnexDone() {
+  const a = ANNEX[S.annex.lv - 1]; SFX.combo();
+  openModal(`<h2>🎉 신관 ${a.name} 완공!</h2><div class="promo">${a.icon}✨</div>
+    <p class="sub">${a.desc}</p><p class="sub"><small>전담 직원이 함께 와서 알아서 돌봐요 · 하루 운영비 💰${fmtN(a.upkeep)}</small></p>
+    <div class="brow"><button class="btn pri" data-act="prep">좋아요! ✨</button></div>`);
+}
+function axSlotHTML(a, i) {
+  const b = S.annex.build;
+  if (i >= S.annex.lv) return `<div class="axs off" data-ax="${a.id}"><i>${a.icon}</i><b>${a.name}</b><span class="axst">${b && b.stage === i ? `⏳${b.left}일` : '🏗️'}</span></div>`;
+  return `<div class="axs" data-ax="${a.id}"><i>${a.icon}</i><b>${a.name}</b><span class="axq"></span><div class="axbars"></div></div>`;
+}
+function showAnnex() {
+  if (G.mode === 'play') G.modal = true;
+  const prep = G.mode === 'prep', b = S.annex.build;
+  const row = (a, i) => {
+    let st;
+    if (i < S.annex.lv) st = `<em class="ok">✅ 운영 중 · 운영비 💰${fmtN(a.upkeep)}/일</em>`;
+    else if (b && b.stage === i) st = `<em>⏳ 공사 중 · ${b.left}일 남음</em>${prep ? `<button class="sbuy" data-act="axRush" ${S.money < rushCost() ? 'disabled' : ''}>⚡ 하루 단축 ${coin(rushCost())}</button>` : ''}`;
+    else if (i === S.annex.lv && !b) st = prep ? `<button class="sbuy" data-act="axBuild" ${S.money < a.cost ? 'disabled' : ''}>🏗️ 착공 ${coin(a.cost)} · ${a.days}일</button>` : `<em>🏗️ 착공 💰${fmtN(a.cost)} · ${a.days}일 (영업 준비 때)</em>`;
+    else st = `<em>🔒 앞 단계 먼저 · 💰${fmtN(a.cost)} · ${a.days}일</em>`;
+    return `<div class="rnode${i < S.annex.lv ? ' done' : b && b.stage === i ? ' cur' : ''}"><b>${i+1}단계 · ${a.icon} ${a.name}</b><small>${a.desc}</small>${axInfo(a, i)}${st}</div>`;
+  };
+  openModal(`<h2>🏥 신관</h2><p class="sub">돈을 더 내면 공사가 빨라져요 (하루 단축) · 완공된 칸은 알아서 굴러가요</p>
+    <div class="axlist">${ANNEX.map(row).join('')}</div>
+    <div class="brow"><button class="btn pri" data-act="annexClose">닫기</button></div>`, 'annex');
+}
+let axInfo = () => '';
 /* ===================== 계산 ===================== */
 const availSyms = d => { const a = DEPTS[d].syms.filter(s => S.day >= s[1]).map(s=>s[0]); return a.length ? a : [DEPTS[d].syms[0][0]]; };
 const isLocked = id => DEPTS[id] ? !S.depts[id] : BUY_ROOMS[id] ? !S.rooms[id] : false;
@@ -1170,9 +1242,11 @@ function applyLayout() {
   if (!S) return;
   const mode = layoutMode(), tpl = curLayout(mode), cols = tpl[0].split(' ').length;
   mapEl.style.gridTemplateAreas = tpl.map(r => `"${r}"`).join(' ');
-  mapEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  const grid = tpl.map(r => r.split(' ')), thin = a => a.every(x => x === 'annex') ? 'minmax(0,.6fr)' : 'minmax(0,1fr)';
+  mapEl.style.gridTemplateColumns = grid[0].map((_, j) => thin(grid.map(r => r[j]))).join(' ');
   mapEl.dataset.rows = tpl.length; mapEl.dataset.cols = cols; mapEl.dataset.mode = mode;
-  mapEl.style.gridTemplateRows = `repeat(${tpl.length},minmax(0,1fr))`;
+  mapEl.dataset.rowTpl = grid.map(thin).join(' ');
+  mapEl.style.gridTemplateRows = mapEl.dataset.rowTpl;
   // 문 위치: 아래에 복도가 있으면 아래쪽, 맨 아랫줄 방이면 위쪽
   const rows = tpl.map(r => r.split(' '));
   mapEl.querySelectorAll('.card').forEach(c => {
@@ -1188,7 +1262,7 @@ function fitMap() {
   if (!S || !mapEl.children.length) return;
   const wrap = $('#mapWrap');
   wrap.classList.remove('scrollfit');
-  mapEl.style.gridTemplateRows = `repeat(${mapEl.dataset.rows || 1},minmax(0,1fr))`;
+  mapEl.style.gridTemplateRows = mapEl.dataset.rowTpl || `repeat(${mapEl.dataset.rows || 1},minmax(0,1fr))`;
   const cs = getComputedStyle(wrap);
   const h = wrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   if (h <= 0) return;
@@ -1267,6 +1341,7 @@ function cardHTML(id) {
     case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}<span class="staffs" data-staff="inj"></span></div>`;
     case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(bedCount())}</div></div>`;
     case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div><span class="staffs" data-staff="cash"></span></div>`;
+    case 'annex': return hdr('🏥','신관', `<span class="syms small">${S.annex.lv}/5</span>`) + `<div class="cb axcb"><div class="axslots">${ANNEX.map(axSlotHTML).join('')}</div></div>`;
     case 'rest':  return hdr('☕','휴게실') + `<div class="cb">${F('f-tr','☕')}${F('f-tl','🪴')}${F('sofa f-b','🛋️')}<span class="staffs" data-staff="rest"></span><span class="rest-empty">조용~ 🍵</span></div>`;
   }
   return '';
@@ -1869,6 +1944,7 @@ function prepDay() {
   G.emergTimes = Array.from({length:ne}, () => rnd(25,150)).sort((a,b) => a-b);
   hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
   showPrep();
+  if (S.annex.justBuilt) { delete S.annex.justBuilt; save(); showAnnexDone(); }
   if (S.res.justDone) { const r = resById(S.res.justDone); delete S.res.justDone; save(); toast(`🧪 연구 완료! ${r.icon} ${r.name} — ${r.desc}`, 'lvl'); checkTrophies(); }
 }
 function showPrep() {
@@ -1887,6 +1963,7 @@ function showPrep() {
       <button class="btn" data-act="layout">🧩 배치</button>
       <button class="btn" data-act="trophy">🏆 트로피</button>
       ${S.grade >= 2 ? `<button class="btn" data-act="lab">🧪 연구${S.res.cur ? ' ⏳' : ''}</button>` : ''}
+      ${S.grade >= 3 ? `<button class="btn" data-act="annex">🏥 신관${S.annex.build ? ' ⏳' : ''}</button>` : ''}
       <button class="btn" data-act="guide">📖 증상표</button>
       <button class="btn" data-act="sound">${OPT.sound?'🔊':'🔇'}</button>
     </div>
@@ -1931,7 +2008,9 @@ function endDay() {
   const res = G.goals.map(g => { const ok = goalOk(g); if (ok) { bonus += goalReward(); got++; } return [g, ok]; });
   addMoney(bonus); S.stars += got; addRep(got);
   const wages = S.staff.reduce((a,s) => a + s.wage, 0); addMoney(-wages);
-  const net = st.income + bonus - wages - st.fine - G.adCost - G.donated - (G.resCost || 0), dRep = S.rep - G.repStart;
+  const upkeep = axUpkeep(); addMoney(-upkeep);
+  if (S.annex.build && --S.annex.build.left <= 0) completeBuild(false);
+  const net = st.income + bonus - wages - upkeep - st.fine - G.adCost - G.donated - (G.resCost || 0) - G.buildCost, dRep = S.rep - G.repStart;
   const cmt = st.angry === 0 && st.treated >= 5 ? '화난 환자 0명! 정말 다정한 병원이에요 💕' : net > 0 ? '오늘도 수고 많았어요, 원장님! 🌙' : '힘든 하루였죠? 내일은 더 잘될 거예요 🍀';
   SFX.day(); updateHUD();
   const dayNo = S.day;
@@ -1964,6 +2043,8 @@ function endDay() {
       ${G.adCost ? row(`📣 홍보비 (${ADS[G.ad].name})`, `-💰${fmtN(G.adCost)}`, 'minus') : ''}
       ${G.donated ? row('🤝 기부', `-💰${fmtN(G.donated)}`, 'minus') : ''}
       ${G.resCost ? row('🧪 연구비', `-💰${fmtN(G.resCost)}`, 'minus') : ''}
+      ${upkeep ? row('🏥 신관 운영비', `-💰${fmtN(upkeep)}`, 'minus') : ''}
+      ${G.buildCost ? row('🏗️ 공사비', `-💰${fmtN(G.buildCost)}`, 'minus') : ''}
       <div class="row tot"><span>순이익</span><b class="${net >= 0 ? 'plus' : 'minus'}">${net >= 0 ? '+' : ''}💰${fmtN(net)}</b></div>
     </div>
     <div class="box"><b>🎯 오늘의 목표</b><br>${res.map(([g, ok]) => `${ok ? '✅' : '❌'} ${goalText(g)} ${ok ? '<span class="stars">+🌟</span>' : ''}`).join('<br>')}</div>
@@ -2331,6 +2412,10 @@ function act(a) {
     case 'layout': startLayEdit(); break;
     case 'trophy': showTrophies(); break;
     case 'lab': showResearch(); break;
+    case 'annex': showAnnex(); break;
+    case 'annexClose': closeGuide(); break;
+    case 'axBuild': startBuild(); break;
+    case 'axRush': rushBuild(); break;
     case 'labClose': closeGuide(); break;
     case 'res': startRes(v); break;
     case 'trophyClose': closeGuide(); break;
@@ -2368,6 +2453,7 @@ function tapRoom(id, c) {
   bounceEl(c);
   if (G.sel) { const p = G.sel; deselect(); sendTo(p, id); return; }
   if (id === 'cash') { const p = G.patients.find(x => x.stage === 'pay'); if (p) pay(p); else { SFX.tap(); const c = S.staff.filter(s => s.role === 'cashier'); toast(c.length ? c.map(staffInfo).join('<br>') : S.grade >= 1 ? '💳 수납 간호사를 고용하면 수납을 자동으로 해 줘요!' : '💳 병원이 되면 수납 간호사를 고용할 수 있어요!'); } return; }
+  if (id === 'annex') { SFX.tap(); showAnnex(); return; }
   if (isLocked(id) || id === 'more') { lockedInfo(id); return; }
   SFX.tap();
   if (DEPTS[id]) { const ds = doctorsOf(id); if (ds.length) toast(ds.map(staffInfo).join('<br>')); }
