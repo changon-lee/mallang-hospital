@@ -342,7 +342,7 @@ def test_child_flow(page_at):
     tick(page, 2.5)
     assert js(page, f"{P(pid)}.stage") == 'annex' and js(page, f"{P(pid)}.ax") == 'peds'
     tick(page, 6.5)
-    assert js(page, f"{P(pid)}.stage") == 'pay' and abs(js(page, f"{P(pid)}.fee") - 70) < 1e-9
+    assert js(page, f"{P(pid)}.stage") == 'pay' and abs(js(page, f"{P(pid)}.fee") - 100) < 1e-9
 
 
 def test_child_to_dept_is_gentle(page_at):
@@ -356,13 +356,13 @@ def test_child_to_dept_is_gentle(page_at):
 def test_ambulance_auto_to_er(page_at):
     page = page_at(); boot(page, grade=3, day=15)
     js(page, "S.annex.lv = 2; prepDay()")
-    assert js(page, "G.ambTimes.length") == 2
+    assert js(page, "G.ambTimes.length") == 3
     js(page, "act('start'); setSpeed(0); G.ambTimes = []; G.heliTimes = []; G.emergTimes = []; G.spawnT = 999")
     pid = js(page, "spawnAmb().id")
     tick(page, 1)
     assert js(page, f"{P(pid)}.stage") == 'annex' and js(page, f"{P(pid)}.ax") == 'er' and js(page, f"{P(pid)}.saved") is True
     tick(page, 8.5)
-    assert js(page, f"{P(pid)}.stage") == 'pay' and js(page, f"{P(pid)}.fee") >= 90
+    assert js(page, f"{P(pid)}.stage") == 'pay' and js(page, f"{P(pid)}.fee") >= 150
 
 
 def test_existing_emergency_to_er(page_at):
@@ -476,3 +476,17 @@ def test_heli_free_on_volunteer_day(page_at):
     m0 = js(page, "S.money"); js(page, "spawnHeli()")
     tick(page, 10.5)
     assert js(page, "S.money") == m0 and js(page, "S.life.heli") == 1
+
+
+def test_walkins_come_extra(page_at):
+    # 소아과·재활치료실은 본관 환자와 별개로 자기 환자가 따로 옴 (본관 스폰은 멈춘 상태)
+    page = page_at(); annex_day(page, 3)
+    js(page, "G.wk = {}")
+    tick(page, 40)
+    kinds = js(page, "G.patients.map(p => p.walkin).filter(Boolean)")
+    assert 'peds' in kinds and 'rehab' in kinds
+    pid = js(page, "G.patients.find(p => p.walkin === 'rehab' && p.stage === 'new').id")
+    js(page, f"register({P(pid)})")
+    assert '🦽' in js(page, f"{P(pid)}.bubEl.textContent")
+    tick(page, 2.5)
+    assert js(page, f"{P(pid)}.ax") == 'rehab' or js(page, f"{P(pid)}.stage") == 'pay'

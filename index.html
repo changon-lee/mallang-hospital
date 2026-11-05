@@ -776,7 +776,7 @@ function newG() {
     combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0,trophBonus:0,annexIncome:0},
     goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
     entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0,
-    layEdit:null, blWarn:{}, donated:0, vol:false, buildCost:0, ax:null, ambTimes:[], heliTimes:[] };
+    layEdit:null, blWarn:{}, donated:0, vol:false, buildCost:0, ax:null, ambTimes:[], heliTimes:[], wk:{} };
 }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
@@ -885,9 +885,9 @@ function EQ_TARGETS() {
 /* ===================== 🏗️ 신관 ===================== */
 // 대학병원부터 5단계 공사. 칸마다 전담 직원이 함께 와서 알아서 굴러감 (운영비만 매일 나감)
 const ANNEX = [
-  { id:'peds',  icon:'👧', name:'소아과',     cost:8000,  days:3, upkeep:200, desc:'아이 환자(🧸)가 와요. 접수하면 알아서 소아과로 가요' },
-  { id:'er',    icon:'🚑', name:'응급실',     cost:14000, days:3, upkeep:300, desc:'구급차 환자가 하루 2명 더 와요. 응급 환자를 신관으로 보내면 바로 처치!' },
-  { id:'rehab', icon:'🦿', name:'재활치료실', cost:20000, days:4, upkeep:350, desc:'정형외과·신경과·수술 후 일부 환자가 재활(🦿)을 받고 가요' },
+  { id:'peds',  icon:'👧', name:'소아과',     cost:8000,  days:3, upkeep:200, desc:'아이 환자(🧸)가 더 와요. 접수하면 알아서 소아과로 가요' },
+  { id:'er',    icon:'🚑', name:'응급실',     cost:14000, days:3, upkeep:300, desc:'구급차 환자가 하루 3명 더 와요. 응급 환자를 신관으로 보내면 바로 처치!' },
+  { id:'rehab', icon:'🦿', name:'재활치료실', cost:20000, days:4, upkeep:350, desc:'재활 외래 환자(🦽)가 더 오고, 정형외과·신경과·수술 후 일부 환자도 재활(🦿)을 받고 가요' },
   { id:'suite', icon:'💎', name:'VIP 특실',   cost:28000, days:4, upkeep:450, desc:'VIP가 특실에 입원해서 퇴원비를 2배로 내요' },
   { id:'heli',  icon:'🚁', name:'헬기장',     cost:38000, days:5, upkeep:600, desc:'가끔 헬기 환자가 날아와요. 알아서 치료하고 큰돈을 내요' },
 ];
@@ -1475,25 +1475,25 @@ function symDept(e) { for (const d of DEPT_ORDER) if (DEPTS[d].syms.some(s => s[
 function spawn(force=false, o={}) {
   if (!force && G.patients.filter(p => p.loc==='ent').length >= ENT_CAP) return null;
   const emerg = !!o.emerg;
-  // 👧 소아과가 있으면 일부는 아이 환자 (🧸, 진료과 대신 신관 소아과)
-  const child = !emerg && !o.heli && (o.child != null ? !!o.child : (!G.tut && axBuilt('peds') && Math.random() < .15));
-  const sym = child ? '🧸' : o.sym || chooseSym();
-  const unknown = emerg || child ? false : o.unknown != null ? o.unknown : (S.day >= 4 && Math.random() < .06 + .12*ramp(4, 10));
+  // 신관 직접 방문 환자: 👧 소아과 아이(🧸) · 🦿 재활 외래(🦽) — 진료과 대신 신관으로
+  const walkin = emerg || o.heli ? null : o.walkin || (o.child ? 'peds' : null), child = walkin === 'peds';
+  const sym = walkin ? WALKIN_SYM[walkin] : o.sym || chooseSym();
+  const unknown = emerg || walkin ? false : o.unknown != null ? o.unknown : (S.day >= 4 && Math.random() < .06 + .12*ramp(4, 10));
   // 복합 증상: 서로 다른 두 진료과를 들러야 함
   const owned = DEPT_ORDER.filter(d => S.depts[d]);
-  const multi = !unknown && !emerg && !child && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 4 && Math.random() < .06 + .14*ramp(4, 10)));
+  const multi = !unknown && !emerg && !walkin && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 4 && Math.random() < .06 + .14*ramp(4, 10)));
   const extra = [];
   if (multi) { const d2 = pick(owned.filter(d => d !== symDept(sym))); extra.push({ sym:pick(availSyms(d2)), dept:d2 }); }
   // 진상 환자
-  const karen = !emerg && !child && !G.tut && (o.karen != null ? o.karen : (S.day >= 5 && Math.random() < .05 + .08*ramp(5, 10)));
+  const karen = !emerg && !walkin && !G.tut && (o.karen != null ? o.karen : (S.day >= 5 && Math.random() < .05 + .08*ramp(5, 10)));
   const red = .08 + .16*ramp(2, 12), r = Math.random();
   const urg = o.urg != null ? o.urg : (r < red ? 2 : r < red + .35 ? 1 : 0);
   let vip = false;
   if (o.vip != null) vip = o.vip;
-  else if (emerg || karen || child) vip = false;
+  else if (emerg || karen || walkin) vip = false;
   else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
   else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1) * ((repTier() || {}).vip || 1)) vip = true;
-  const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:child ? null : symDept(sym), child, amb:!!o.amb, heli:!!o.heli, ax:null, axWant:null, axT:0, unknown, revealed:false, shown:unknown?'❓':sym,
+  const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:walkin ? null : symDept(sym), child, walkin, amb:!!o.amb, heli:!!o.heli, ax:null, axWant:null, axT:0, unknown, revealed:false, shown:unknown?'❓':sym,
     urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
     extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
   const el = document.createElement('div');
@@ -1540,7 +1540,7 @@ function calmKaren(p) {
 function register(p) {
   if (p.stage !== 'new') return;
   p.stage = 'reg'; updBub(p); SFX.reg(); bounce(p);
-  if (p.child) { p.axWant = 'peds'; p.axT = G.t + 2; say(p, '소아과 갈래요~ 🧸'); }
+  if (p.walkin) { p.axWant = p.walkin; p.axT = G.t + 2; say(p, p.child ? '소아과 갈래요~ 🧸' : '재활 치료 받으러 왔어요 🦽'); }
   if (p.vip) say(p, '👑 잘 부탁해요~'); else if (p.unknown) say(p, '어디가 아픈지 모르겠어요…');
   toSeat(p);
   if (G.tut === 1) setTut(2);
@@ -1597,8 +1597,18 @@ function pay(p, opt = {}) {
 const AX_DEST = { rehab:'🦿', suite:'💎' };
 const axCap = id => id === 'peds' ? 1 + hasRes('play') : id === 'rehab' ? 1 + hasRes('robot') : id === 'suite' ? 2 + hasRes('concierge') : 1;
 const axDur = id => ({ peds:6, er:8 * (hasRes('erp') ? .7 : 1), rehab:7, heli:10 })[id] / eqSpd(id);
-const axFee = id => ({ peds:70, er:90, rehab:60 })[id] * eqFee(id);
+const axFee = id => ({ peds:100, er:150, rehab:90 })[id] * eqFee(id);
 const axCryAt = () => hasRes('play') ? 20 : 30;
+const WALKIN_SYM = { peds:'🧸', rehab:'🦽' };
+// 소아과·재활치료실이 있으면 그 칸 환자가 본관 환자와 별개로 꾸준히 옴
+function updWalkins(dt) {
+  if (!G.ax || G.t >= SPAWN_END) return;
+  for (const id in WALKIN_SYM) {
+    if (!G.ax[id]) continue;
+    G.wk[id] = (G.wk[id] == null ? rnd(4,12) : G.wk[id]) - dt;
+    if (G.wk[id] <= 0) G.wk[id] = spawn(false, { walkin:id }) ? spawnInterval() * 4.5 : 2;
+  }
+}
 function axInit() {
   G.ax = {};
   for (const a of ANNEX) if (axBuilt(a.id)) G.ax[a.id] = { q:[], slots:Array(axCap(a.id)).fill(null) };
@@ -1689,7 +1699,7 @@ axInfo = (a, i) => i < S.annex.lv ? `<small>👥 정원 ${axCap(a.id)}명${a.id 
 /* ===================== 선택 / 안내 ===================== */
 function validRooms(p) {
   const v = [];
-  if (p.child) { if (G.ax && G.ax.peds) v.push('annex'); if (p.loc === 'ent' && freeSeat() >= 0) v.push('wait'); return v; }
+  if (p.walkin) { if (G.ax && G.ax[p.walkin]) v.push('annex'); if (p.loc === 'ent' && freeSeat() >= 0) v.push('wait'); return v; }
   if (G.ax && ((p.emerg && !p.saved && G.ax.er) || (p.done && AX_DEST[p.dest] && G.ax[p.dest]))) v.push('annex');
   if (!p.done) { DEPT_ORDER.forEach(d => S.depts[d] && v.push(d)); if (S.rooms.exam && p.unknown && !p.revealed) v.push('exam'); }
   else { v.push('pharm', 'ward'); if (S.rooms.inj) v.push('inj'); if (S.rooms.surg) v.push('surg'); }
@@ -1727,7 +1737,7 @@ function sendTo(p, r) {
   if (p.stage === 'gone' || p.stage === 'annex') return;
   if (AX_DEST[r]) r = 'annex'; // 신관 칸 이름으로 보내도 신관으로
   if (r === 'annex') { sendAnnex(p); return; }
-  if (p.child && r !== 'wait') { if (p.stage !== 'new') say(p, '저는 신관 소아과로 가요~ 🧸'); else say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
+  if (p.walkin && r !== 'wait') { if (p.stage !== 'new') say(p, p.child ? '저는 신관 소아과로 가요~ 🧸' : '저는 신관 재활치료실로 가요~ 🦽'); else say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
   if (isLocked(r) || r === 'more') { lockedInfo(r); return; }
   if (r === 'wait') { if (p.loc === 'ent' && p.stage !== 'new' && freeSeat() >= 0) { toSeat(p); SFX.tap(); } return; }
   if (!['reg','queued','next'].includes(p.stage)) { if (p.stage === 'new') say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
@@ -1748,7 +1758,7 @@ function sendAnnex(p) {
   if (!G.ax || !Object.keys(G.ax).length) { toast('🏥 신관은 아직 공사 전이에요'); return; }
   if (p.stage === 'new') { say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
   if (!['reg','queued','next'].includes(p.stage)) return;
-  if (p.child) { toAnnex(p, 'peds'); return; }
+  if (p.walkin) { toAnnex(p, p.walkin); return; }
   if (p.emerg && !p.saved && G.ax.er) { toAnnex(p, 'er'); return; }
   if (p.done && AX_DEST[p.dest] && G.ax[p.dest]) { toAnnex(p, p.dest); return; }
   if (p.done) wrongMove(p, `신관 말고 ${DEST[p.dest]} 쪽이에요`); else say(p, '저는 본관 진료과로 가요~');
@@ -1995,7 +2005,7 @@ function update(dt) {
     if (G.emergTimes.length && G.t >= G.emergTimes[0] && G.t < SPAWN_END) { G.emergTimes.shift(); spawnEmerg(); }
     if (G.ambTimes.length && G.t >= G.ambTimes[0] && G.t < SPAWN_END) { G.ambTimes.shift(); spawnAmb(); }
     if (G.heliTimes.length && G.t >= G.heliTimes[0] && G.t < SPAWN_END) { G.heliTimes.shift(); spawnHeli(); }
-    updEvent(); updDirt(dt); updKaren(dt); updPatience(dt);
+    updEvent(); updDirt(dt); updKaren(dt); updPatience(dt); updWalkins(dt);
   }
   updRooms(dt); updStaff(dt); updAnnex(dt);
   // 영업 종료 후에도 남은 환자를 모두 처리해야 하루가 끝남 (입원 환자는 결산 때 퇴원)
@@ -2078,7 +2088,7 @@ function prepDay() {
   const ne = S.day < 3 ? 0 : 1 + (S.day >= 7 ? 1 : 0) + S.grade + (S.grade >= 3 ? 1 : 0);
   G.emergTimes = Array.from({length:ne}, () => rnd(25,150)).sort((a,b) => a-b);
   axInit();
-  G.ambTimes = G.ax.er ? [rnd(20,80), rnd(85,150)] : [];
+  G.ambTimes = G.ax.er ? [rnd(20,60), rnd(65,105), rnd(110,150)] : [];
   G.heliTimes = G.ax.heli ? Array.from({length:rnd(1,2)}, () => rnd(30,140)).sort((a,b) => a-b) : [];
   hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
   showPrep();
