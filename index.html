@@ -207,6 +207,12 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .axs b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .axs .axst{font-weight:800;color:var(--muted)}
 .axs.off{background:#f3f3f3;border-style:dashed;opacity:.75}.axs.off i{filter:grayscale(1)}
+.axs .pt{position:absolute!important;left:50%;top:0;opacity:0;pointer-events:none}
+.axs .axq{font-weight:800;color:#d9822b}.axs .axq:empty{display:none}
+.axbars{position:absolute;left:5px;right:5px;bottom:2px;display:flex;gap:2px}
+.axbars i{flex:1;height:3px;border-radius:3px;background:#0000000f;overflow:hidden}.axbars b{display:block;height:100%;background:var(--mintD)}
+.axs .backlog{position:absolute;right:2px;top:1px}
+.card.target .axs:not(.off){border-color:var(--mintD)}
 .modal h2{margin:.05em 0 .35em;font-size:1.6rem;text-align:center;color:#d9668b;text-shadow:0 3px 0 #ffe0e8;font-weight:900}
 .modal .sub{text-align:center;color:#9b8a9f;margin:0 0 12px;font-size:1rem;line-height:1.55;font-weight:600}
 .btn{border-radius:99px;padding:.65em 1.3em;font-weight:900;background:#fff;border:3px solid #f1e4d8;box-shadow:0 4px 0 #f1e4d8;transition:transform .1s}
@@ -681,7 +687,7 @@ const REP_TIERS = [
   { rep:90, mul:1.40, icon:'🏅', name:'명의 병원', vip:1.3 },
   { rep:96, mul:1.60, icon:'👑', name:'전설의 병원', vip:1.5 },
 ];
-const DEST = { pharm:'💊', inj:'💉', ward:'🛏️', surg:'⚕️' };
+const DEST = { pharm:'💊', inj:'💉', ward:'🛏️', surg:'⚕️', rehab:'🦿', suite:'💎' };
 const EVENTS = {
   flu:     { icon:'🤧', name:'독감 시즌', desc:'오늘은 🤧 감기 환자가 엄청 많이 와요! 내과를 바쁘게 돌려 봐요.' },
   group:   { icon:'🚑', name:'단체 환자', desc:'오늘 중에 단체 환자가 한꺼번에 도착해요. 대기실을 비워 둬요!' },
@@ -767,10 +773,10 @@ function newState() {
 }
 function newG() {
   return { mode:'idle', speed:1, modal:false, t:0, spawnT:2, pid:0, patients:[], dirt:[], dirtT:16,
-    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0,trophBonus:0},
+    combo:0, maxCombo:0, stats:{treated:0,angry:0,income:0,vip:0,fine:0,wardN:0,wardIncome:0,wrong:0,emergOk:0,emergLost:0,karenCalm:0,repBonus:0,trophBonus:0,annexIncome:0},
     goals:[], event:null, vipTimes:[], emergTimes:[], sel:null, tut:0, slots:{}, slotEls:{}, progEls:{}, seats:[], seatEls:[],
     entQ:null, cashQ:null, dirtL:null, warned:false, repStart:S?S.rep:0, moneyStart:S?S.money:0, shopTab:'dept', staffT:0, ad:null, adCost:0,
-    layEdit:null, blWarn:{}, donated:0, vol:false, buildCost:0 };
+    layEdit:null, blWarn:{}, donated:0, vol:false, buildCost:0, ax:null, ambTimes:[], heliTimes:[] };
 }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); const e = $('#hSave'); e.classList.add('on'); setTimeout(()=>e.classList.remove('on'), 1200); } catch(e) {}
@@ -1425,6 +1431,7 @@ function place(p, container) {
 }
 const freeSeat = () => G.seats.indexOf(null);
 function leave(p) {
+  if (p.loc === 'annex') { axLeave(p); p.ax = null; p.axIn = false; }
   if (p.loc === 'seat') { if (G.seats[p.slot] === p) G.seats[p.slot] = null; }
   else if (G.slots[p.loc] && G.slots[p.loc][p.slot] === p) G.slots[p.loc][p.slot] = null;
   p.loc = null; p.slot = -1;
@@ -1452,8 +1459,10 @@ function updBub(p) {
     case 'queued': h = p.done ? `${DEST[p.dest]}<small>⏳</small>` : `${p.shown}${p.extra.map(e => e.sym).join('')}<small>→${ROOMS[p.target].icon}</small>`; break;
     case 'next': h = DEST[p.dest]; cls += ' dest'; break;
     case 'pay': h = '💰'; cls += ' pay'; break;
-    case 'ward': h = '💤'; break;
+    case 'ward': h = p.ax === 'suite' ? '💎' : '💤'; break;
+    case 'annex': h = ANNEX.find(a => a.id === p.ax).icon; break;
   }
+  if (p.cry && p.stage !== 'annex') h = '😭';
   if (p.extra.length && (p.stage === 'reg' || (p.stage === 'queued' && !p.done))) cls += ' multi';
   p.bubEl.className = cls; p.bubEl.innerHTML = h;
 }
@@ -1465,29 +1474,31 @@ function chooseSym() {
 function symDept(e) { for (const d of DEPT_ORDER) if (DEPTS[d].syms.some(s => s[0]===e)) return d; return 'int'; }
 function spawn(force=false, o={}) {
   if (!force && G.patients.filter(p => p.loc==='ent').length >= ENT_CAP) return null;
-  const sym = o.sym || chooseSym();
   const emerg = !!o.emerg;
-  const unknown = emerg ? false : o.unknown != null ? o.unknown : (S.day >= 4 && Math.random() < .06 + .12*ramp(4, 10));
+  // 👧 소아과가 있으면 일부는 아이 환자 (🧸, 진료과 대신 신관 소아과)
+  const child = !emerg && !o.heli && (o.child != null ? !!o.child : (!G.tut && axBuilt('peds') && Math.random() < .15));
+  const sym = child ? '🧸' : o.sym || chooseSym();
+  const unknown = emerg || child ? false : o.unknown != null ? o.unknown : (S.day >= 4 && Math.random() < .06 + .12*ramp(4, 10));
   // 복합 증상: 서로 다른 두 진료과를 들러야 함
   const owned = DEPT_ORDER.filter(d => S.depts[d]);
-  const multi = !unknown && !emerg && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 4 && Math.random() < .06 + .14*ramp(4, 10)));
+  const multi = !unknown && !emerg && !child && owned.length >= 2 && (o.multi != null ? o.multi : (S.day >= 4 && Math.random() < .06 + .14*ramp(4, 10)));
   const extra = [];
   if (multi) { const d2 = pick(owned.filter(d => d !== symDept(sym))); extra.push({ sym:pick(availSyms(d2)), dept:d2 }); }
   // 진상 환자
-  const karen = !emerg && !G.tut && (o.karen != null ? o.karen : (S.day >= 5 && Math.random() < .05 + .08*ramp(5, 10)));
+  const karen = !emerg && !child && !G.tut && (o.karen != null ? o.karen : (S.day >= 5 && Math.random() < .05 + .08*ramp(5, 10)));
   const red = .08 + .16*ramp(2, 12), r = Math.random();
   const urg = o.urg != null ? o.urg : (r < red ? 2 : r < red + .35 ? 1 : 0);
   let vip = false;
   if (o.vip != null) vip = o.vip;
-  else if (emerg || karen) vip = false;
+  else if (emerg || karen || child) vip = false;
   else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
   else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1) * ((repTier() || {}).vip || 1)) vip = true;
-  const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:symDept(sym), unknown, revealed:false, shown:unknown?'❓':sym,
+  const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:child ? null : symDept(sym), child, amb:!!o.amb, heli:!!o.heli, ax:null, axWant:null, axT:0, unknown, revealed:false, shown:unknown?'❓':sym,
     urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
     extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
   const el = document.createElement('div');
-  el.className = 'pt arrive' + (emerg ? ' emerg' : '') + (karen ? ' karen' : ''); el.dataset.id = p.id;
-  el.innerHTML = `<div class="pt-in"><div class="pt-bw"><div class="pt-say"></div><div class="pt-bub"></div></div><div class="pt-body"><span class="ani">${p.animal}</span><span class="pt-urg u${p.urg}"></span>${vip?'<span class="crown">👑</span>':''}</div><div class="pt-hp"><b>♥</b><span><i></i></span></div></div>`;
+  el.className = 'pt arrive' + (emerg ? ' emerg' : '') + (karen ? ' karen' : '') + (child ? ' child' : '') + (p.heli ? ' heli' : ''); el.dataset.id = p.id;
+  el.innerHTML = `<div class="pt-in"><div class="pt-bw"><div class="pt-say"></div><div class="pt-bub"></div></div><div class="pt-body"><span class="ani">${p.animal}</span><span class="pt-urg u${p.urg}"></span>${vip?'<span class="crown">👑</span>':child?'<span class="crown">🎀</span>':''}</div><div class="pt-hp"><b>♥</b><span><i></i></span></div></div>`;
   p.el = el; p.sayEl = el.querySelector('.pt-say'); p.bubEl = el.querySelector('.pt-bub'); p.bodyEl = el.querySelector('.pt-body'); p.hpEl = el.querySelector('.pt-hp i');
   updBub(p);
   G.patients.push(p);
@@ -1529,6 +1540,7 @@ function calmKaren(p) {
 function register(p) {
   if (p.stage !== 'new') return;
   p.stage = 'reg'; updBub(p); SFX.reg(); bounce(p);
+  if (p.child) { p.axWant = 'peds'; p.axT = G.t + 2; say(p, '소아과 갈래요~ 🧸'); }
   if (p.vip) say(p, '👑 잘 부탁해요~'); else if (p.unknown) say(p, '어디가 아픈지 모르겠어요…');
   toSeat(p);
   if (G.tut === 1) setTut(2);
@@ -1549,7 +1561,7 @@ function angry(p) {
   p.pat = 0; p.bubEl.className = 'pt-bub mad'; p.bubEl.innerHTML = '💢';
   say(p, p.karen ? '별점 1개 남길 거예요!! ⭐' : pick(['흥! 다른 병원 갈래요 💢','너무 오래 기다렸어요… 💢','으앙 집에 갈래 💢']));
   const lost = p.emerg && !p.saved;
-  addRep(lost ? -8 : p.karen ? -6 : p.vip ? -6 : -3); G.stats.angry++; breakCombo(); SFX.angry();
+  addRep(lost ? -8 : p.karen || p.vip || p.heli ? -6 : -3); G.stats.angry++; breakCombo(); SFX.angry();
   if (lost) { G.stats.emergLost++; toast('🚑 응급 환자를 큰 병원으로 보냈어요… 평판이 크게 떨어졌어요', 'bad'); }
   else if (p.karen) toast('⭐ 진상 환자가 별점 테러를 남겼어요… 😱', 'bad');
   removeP(p, 'mad');
@@ -1562,6 +1574,7 @@ function pay(p, opt = {}) {
   const tip = (p.karen ? 0 : Math.round(p.fee * .25 * p.pat / 100) + fast) + extraPay(p);
   const total = G.vol ? 0 : earn(p.fee + tip); // 봉사 진료의 날은 무료
   addMoney(total); G.stats.income += total; G.stats.treated++; S.total++;
+  if (p.axFee && !G.vol) G.stats.annexIncome += Math.round(p.axFee * incomeMul());
   if (p.vip) { G.stats.vip++; S.life.vip++; }
   addRep(p.vip || p.karen ? 1.5 : G.vol ? 1.0 : .45);
   if (p.multi) setTimeout(() => p.el.isConnected && floatAt(p.el, '복합 진료 완료! +20', 's'), 300);
@@ -1579,9 +1592,105 @@ function pay(p, opt = {}) {
   if (G.tut === 6) setTut(7);
 }
 
+/* ===================== 🏥 신관 운영 (자동) ===================== */
+// 신관 환자는 신관 카드까지 걸어간 뒤 안으로 들어가고, 칸별 진행 막대와 대기 인원만 보임
+const AX_DEST = { rehab:'🦿', suite:'💎' };
+const axCap = id => id === 'peds' ? 1 + hasRes('play') : id === 'rehab' ? 1 + hasRes('robot') : id === 'suite' ? 2 + hasRes('concierge') : 1;
+const axDur = id => ({ peds:6, er:8 * (hasRes('erp') ? .7 : 1), rehab:7, heli:10 })[id] / eqSpd(id);
+const axFee = id => ({ peds:70, er:90, rehab:60 })[id] * eqFee(id);
+const axCryAt = () => hasRes('play') ? 20 : 30;
+function axInit() {
+  G.ax = {};
+  for (const a of ANNEX) if (axBuilt(a.id)) G.ax[a.id] = { q:[], slots:Array(axCap(a.id)).fill(null) };
+}
+const axEl = id => mapEl.querySelector(`.axs[data-ax="${id}"]`);
+// 신관 칸으로 보내기 (대기열 또는 빈 자리)
+function toAnnex(p, id, fly = false) {
+  const A = G.ax && G.ax[id];
+  if (!A || p.stage === 'gone' || p.ax) return false;
+  if (id === 'suite' && !A.slots.includes(null)) {
+    p.axWant = null; say(p, '특실이 꽉 찼대요… 입원실로 갈게요', 2200); p.dest = 'ward'; toWard(p); return false;
+  }
+  if (G.sel === p) deselect();
+  if (id === 'er' && p.emerg && !p.saved) { p.saved = true; G.stats.emergOk++; S.life.emergOk++; addRep(2); toast('🚑 응급실로 바로 처치 시작! ✨', 'lvl'); SFX.combo(); }
+  leave(p); p.loc = 'annex'; p.ax = id; p.axWant = null; p.stage = 'annex'; p.axIn = false; p.svc = 0;
+  const el = axEl(id);
+  if (el) { if (fly) el.appendChild(p.el); else place(p, el); }
+  A.q.push(p); updBub(p); SFX.tap();
+  axFill(id);
+  return true;
+}
+function axFill(id) {
+  const A = G.ax[id];
+  for (let i = 0; i < A.slots.length; i++) {
+    if (A.slots[i] || !A.q.length) continue;
+    // 응급이 먼저, 나머지는 온 순서
+    let k = A.q.findIndex(p => p.emerg); if (k < 0) k = 0;
+    const p = A.q.splice(k, 1)[0];
+    A.slots[i] = p; p.axIn = true; p.svc = 0; p.dur = id === 'suite' ? 1 : axDur(id);
+    if (id === 'suite') { p.stage = 'ward'; updBub(p); say(p, '특실 최고예요~ 💎', 1600); }
+  }
+}
+function axLeave(p) {
+  const A = G.ax && G.ax[p.ax]; if (!A) return;
+  A.q = A.q.filter(x => x !== p);
+  const i = A.slots.indexOf(p); if (i >= 0) A.slots[i] = null;
+}
+function axDone(id, i, p) {
+  const A = G.ax[id]; A.slots[i] = null; p.axIn = false;
+  if (id === 'heli') {
+    const amt = earn((400 + S.day*10) * eqFee('heli'));
+    addMoney(amt); G.stats.income += amt; G.stats.annexIncome += amt; G.stats.treated++; S.total++; S.life.heli++;
+    addRep(1.5); const c = cardEl('annex'); if (c) floatAt(c, `🚁 +💰${amt}`); SFX.coin();
+    removeP(p, 'bye'); checkTrophies(); return;
+  }
+  const f = axFee(id); p.fee += f; p.axFee = (p.axFee || 0) + f;
+  p.ax = null; p.stage = 'pay'; p.done = true; toCash(p); updBub(p); SFX.done();
+  say(p, pick(['다 나았어요! 💕','신관 최고예요 ✨','고마워요~']), 1200);
+}
+// 매 프레임: 자동 이동 · 칸 진행
+function updAnnex(dt) {
+  if (!G.ax) return;
+  for (const p of G.patients.slice()) {
+    if (p.axWant && !p.ax && G.t >= p.axT && ['reg','queued','next'].includes(p.stage)) toAnnex(p, p.axWant);
+  }
+  for (const id in G.ax) {
+    const A = G.ax[id];
+    A.slots.forEach((p, i) => { if (p && id !== 'suite') { p.svc += dt; if (p.svc >= p.dur) axDone(id, i, p); } });
+    axFill(id);
+  }
+}
+function renderAnnex() {
+  if (!G.ax) return;
+  for (const id in G.ax) {
+    const el = axEl(id); if (!el) continue;
+    const A = G.ax[id], n = A.q.length;
+    let q = el.querySelector('.axq'), bars = el.querySelector('.axbars');
+    if (q) setH(q, n ? `⏳${n}` : '');
+    if (bars) setH(bars, A.slots.map(p => `<i><b style="width:${p ? (id === 'suite' ? 100 : Math.min(100, p.svc/p.dur*100)) : 0}%"></b></i>`).join(''));
+    let b = el.querySelector('.backlog');
+    if (n >= A.slots.length + 2) { if (!b) { b = document.createElement('span'); b.className = 'backlog'; el.appendChild(b); } setH(b, `📥${n}`); }
+    else if (b) b.remove();
+  }
+}
+function spawnAmb() {
+  const p = spawn(true, { emerg:true, amb:true });
+  p.axWant = 'er'; p.axT = G.t + .6;
+  toast('🚑 구급차 도착! 응급실로 바로 들어가요', 'emer'); SFX.siren();
+  return p;
+}
+function spawnHeli() {
+  const p = spawn(true, { heli:true, urg:2, vip:false, karen:false, multi:false, unknown:false });
+  toAnnex(p, 'heli', true);
+  toast('🚁 헬기 환자가 도착했어요! 헬기장 팀이 바로 맡아요', 'ev'); SFX.alert();
+  return p;
+}
+axInfo = (a, i) => i < S.annex.lv ? `<small>👥 정원 ${axCap(a.id)}명${a.id === 'suite' ? ' (하루 입원)' : ` · ⏱️ ${(Math.round(axDur(a.id)*10)/10).toFixed(1)}초`}</small>` : '';
 /* ===================== 선택 / 안내 ===================== */
 function validRooms(p) {
   const v = [];
+  if (p.child) { if (G.ax && G.ax.peds) v.push('annex'); if (p.loc === 'ent' && freeSeat() >= 0) v.push('wait'); return v; }
+  if (G.ax && ((p.emerg && !p.saved && G.ax.er) || (p.done && AX_DEST[p.dest] && G.ax[p.dest]))) v.push('annex');
   if (!p.done) { DEPT_ORDER.forEach(d => S.depts[d] && v.push(d)); if (S.rooms.exam && p.unknown && !p.revealed) v.push('exam'); }
   else { v.push('pharm', 'ward'); if (S.rooms.inj) v.push('inj'); if (S.rooms.surg) v.push('surg'); }
   if (p.loc === 'ent' && freeSeat() >= 0) v.push('wait');
@@ -1615,7 +1724,10 @@ function queueTo(p, r) {
   updBub(p); SFX.tap();
 }
 function sendTo(p, r) {
-  if (p.stage === 'gone') return;
+  if (p.stage === 'gone' || p.stage === 'annex') return;
+  if (AX_DEST[r]) r = 'annex'; // 신관 칸 이름으로 보내도 신관으로
+  if (r === 'annex') { sendAnnex(p); return; }
+  if (p.child && r !== 'wait') { if (p.stage !== 'new') say(p, '저는 신관 소아과로 가요~ 🧸'); else say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
   if (isLocked(r) || r === 'more') { lockedInfo(r); return; }
   if (r === 'wait') { if (p.loc === 'ent' && p.stage !== 'new' && freeSeat() >= 0) { toSeat(p); SFX.tap(); } return; }
   if (!['reg','queued','next'].includes(p.stage)) { if (p.stage === 'new') say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
@@ -1631,6 +1743,15 @@ function sendTo(p, r) {
     queueTo(p, r); return;
   }
   if (DEPTS[r] || r === 'exam') say(p, `진료는 끝났어요! ${DEST[p.dest]} 쪽으로 가요`);
+}
+function sendAnnex(p) {
+  if (!G.ax || !Object.keys(G.ax).length) { toast('🏥 신관은 아직 공사 전이에요'); return; }
+  if (p.stage === 'new') { say(p, '먼저 톡! 해서 접수해 주세요~'); return; }
+  if (!['reg','queued','next'].includes(p.stage)) return;
+  if (p.child) { toAnnex(p, 'peds'); return; }
+  if (p.emerg && !p.saved && G.ax.er) { toAnnex(p, 'er'); return; }
+  if (p.done && AX_DEST[p.dest] && G.ax[p.dest]) { toAnnex(p, p.dest); return; }
+  if (p.done) wrongMove(p, `신관 말고 ${DEST[p.dest]} 쪽이에요`); else say(p, '저는 본관 진료과로 가요~');
 }
 function toWard(p) {
   const i = G.slots.ward.indexOf(null);
@@ -1684,7 +1805,16 @@ function rollDest(r, p) {
   const beds = G.slots.ward.filter(x => !x).length - G.patients.filter(p => p.dest === 'ward' && (p.stage === 'next' || p.stage === 'svc')).length;
   if (beds > 0) opts.push(['ward', r === 'obgy' ? 5 : 1.4]);
   if (surgW) opts.push(['surg', surgW]);
-  return wpick(opts);
+  if (G.ax && G.ax.rehab && (r === 'ort' || r === 'neu')) opts.push(['rehab', 2]);
+  let d = wpick(opts);
+  // 💎 VIP는 입원이면 특실로, 아니어도 30%는 특실로
+  if (p && p.vip && G.ax && G.ax.suite && (d === 'ward' || Math.random() < .3)) d = 'suite';
+  return d;
+}
+function assignDest(p, d) {
+  p.dest = d; p.stage = 'next'; p.nextT = G.t;
+  if (AX_DEST[d]) { p.axWant = d; p.axT = G.t + 2; }
+  toSeat(p); updBub(p);
 }
 function svcStep(r, i, p) {
   if (p.phase === 'check') {
@@ -1715,8 +1845,7 @@ function svcStep(r, i, p) {
       say(p, `다음은 ${DEPTS[nx.dept].name}! ${nx.sym}`, 2200);
       return;
     }
-    p.done = true; p.dest = rollDest(r, p); p.stage = 'next'; p.nextT = G.t;
-    toSeat(p); updBub(p); bounce(p); SFX.done();
+    p.done = true; assignDest(p, rollDest(r, p)); bounce(p); SFX.done();
     if (G.tut === 3) setTut(4);
   } else if (r === 'exam') {
     p.revealed = true; p.shown = p.sym; p.fee += 15; p.stage = 'reg';
@@ -1724,6 +1853,7 @@ function svcStep(r, i, p) {
   } else {
     p.fee += r === 'pharm' ? 10 : r === 'surg' ? (120 + S.day*3) * eqFee('surg') * (hasRes('surg2') ? 1.3 : 1) : 20;
     if (r === 'pharm') work(pharmacist(), 5);
+    if (r === 'surg' && G.ax && G.ax.rehab && Math.random() < .4) { assignDest(p, 'rehab'); SFX.done(); return; }
     p.stage = 'pay'; toCash(p); updBub(p); SFX.done();
     if (G.tut === 5) setTut(6);
   }
@@ -1793,13 +1923,16 @@ function updDirt(dt) {
 }
 function updPatience(dt) {
   const hm = hospitalMul();
-  const noisy = G.patients.some(p => p.tantrum);
+  const noisy = G.patients.some(p => p.tantrum), crying = G.patients.some(p => p.cry);
   for (const p of G.patients.slice()) {
-    if (p.stage === 'svc' || p.stage === 'ward') continue;
+    if (p.stage === 'svc' || p.stage === 'ward' || (p.stage === 'annex' && p.axIn)) continue;
     if (p.emerg && !p.saved) { p.pat -= dt * 100/emergLimit(); if (p.pat <= 0) angry(p); continue; } // 응급: 제한 시간
     let lm = p.loc === 'cash' ? .45 : p.loc === 'pharmQ' ? .6 : p.loc === 'ent' ? (p.stage === 'new' ? 1 : 1.2) : 1;
     if (noisy && !p.tantrum && (p.loc === 'seat' || p.loc === 'ent')) lm *= 1.4; // 진상 소란에 다들 지침
     if (p.multi) lm *= .8;
+    if (p.stage === 'annex') lm *= .5; // 신관 대기는 편안해서 천천히
+    if (crying && !p.child && (p.loc === 'seat' || p.loc === 'ent')) lm *= 1.2; // 우는 아이 때문에 다들 지침
+    if (p.child) { lm *= 1.3; const c = p.pat < axCryAt(); if (c !== !!p.cry) { p.cry = c; updBub(p); if (c) say(p, '으앙~ 😭', 1500); } }
     p.pat -= dt * URG_DRAIN[p.urg] * (p.vip ? 1.5 : 1) * hm * lm * (hasRes('kind') ? .92 : 1);
     if (p.pat <= 0) angry(p);
   }
@@ -1860,9 +1993,11 @@ function update(dt) {
     else if (!G.closedMsg) { G.closedMsg = true; toast('🚪 오늘 접수는 마감이에요! 남은 환자를 돌봐 줘요'); }
     if (!G.warned && G.t >= DAY_LEN - 30) { G.warned = true; toast(`⏰ 곧 마감이에요! ${clockStr(SPAWN_END)} 접수 마감 · ${clockStr(DAY_LEN)} 영업 종료`); }
     if (G.emergTimes.length && G.t >= G.emergTimes[0] && G.t < SPAWN_END) { G.emergTimes.shift(); spawnEmerg(); }
+    if (G.ambTimes.length && G.t >= G.ambTimes[0] && G.t < SPAWN_END) { G.ambTimes.shift(); spawnAmb(); }
+    if (G.heliTimes.length && G.t >= G.heliTimes[0] && G.t < SPAWN_END) { G.heliTimes.shift(); spawnHeli(); }
     updEvent(); updDirt(dt); updKaren(dt); updPatience(dt);
   }
-  updRooms(dt); updStaff(dt);
+  updRooms(dt); updStaff(dt); updAnnex(dt);
   // 영업 종료 후에도 남은 환자를 모두 처리해야 하루가 끝남 (입원 환자는 결산 때 퇴원)
   if (!frozen && G.t >= DAY_LEN) {
     const left = G.patients.filter(p => p.stage !== 'ward').length;
@@ -1909,7 +2044,7 @@ function renderDyn(raw) {
   });
   G.staffT -= raw;
   if (G.staffT <= 0) { G.staffT = .25; renderStaff(); }
-  updateHUD(); renderGoals();
+  renderAnnex(); updateHUD(); renderGoals();
 }
 let lastT = performance.now();
 function frame(now) {
@@ -1942,6 +2077,9 @@ function prepDay() {
   if (vg) G.vipTimes = Array.from({length:vg.target+1}, () => rnd(8,150)).sort((a,b) => a-b);
   const ne = S.day < 3 ? 0 : 1 + (S.day >= 7 ? 1 : 0) + S.grade + (S.grade >= 3 ? 1 : 0);
   G.emergTimes = Array.from({length:ne}, () => rnd(25,150)).sort((a,b) => a-b);
+  axInit();
+  G.ambTimes = G.ax.er ? [rnd(20,80), rnd(85,150)] : [];
+  G.heliTimes = G.ax.heli ? Array.from({length:rnd(1,2)}, () => rnd(30,140)).sort((a,b) => a-b) : [];
   hideCoach(); buildMap(); applyLayout(); updateHUD(); renderGoals(); setSpeed(1);
   showPrep();
   if (S.annex.justBuilt) { delete S.annex.justBuilt; save(); showAnnexDone(); }
@@ -1988,9 +2126,11 @@ function endDay() {
   const st = G.stats;
   let autoPay = 0;
   for (const p of G.patients.slice()) {
-    if (p.stage === 'pay') { const a = G.vol ? 0 : earn(p.fee); addMoney(a); st.income += a; st.treated++; S.total++; if (p.vip) { st.vip++; S.life.vip++; } addRep(.5); autoPay++; removeP(p, 'bye'); }
+    if (p.stage === 'pay') { const a = G.vol ? 0 : earn(p.fee); if (p.axFee && !G.vol) st.annexIncome += Math.round(p.axFee * incomeMul()); addMoney(a); st.income += a; st.treated++; S.total++; if (p.vip) { st.vip++; S.life.vip++; } addRep(.5); autoPay++; removeP(p, 'bye'); }
     else if (p.stage === 'ward') {
-      const amt = G.vol ? 0 : earn(p.fee + 120 + S.day*6 + extraPay(p));
+      const suite = p.ax === 'suite';
+      const amt = G.vol ? 0 : earn((p.fee + 120 + S.day*6 + extraPay(p)) * (suite ? 2 * (hasRes('concierge') ? 1.3 : 1) : 1));
+      if (suite) st.annexIncome += amt;
       addMoney(amt); st.income += amt; st.wardIncome += amt; st.wardN++; st.treated++; S.total++; if (p.vip) { st.vip++; S.life.vip++; }
       addRep(1.5); floatAt(p.el, `+💰${amt}`); removeP(p, 'bye');
     } else removeP(p, 'bye');
@@ -2035,6 +2175,7 @@ function endDay() {
     <div class="box">
       ${row('진료 수입', `+💰${fmtN(st.income - st.wardIncome)}`, 'plus')}
       ${st.wardIncome ? row('입원 퇴원비', `+💰${fmtN(st.wardIncome)}`, 'plus') : ''}
+      ${st.annexIncome ? row('　└ 🏥 신관 수입 (포함)', `+💰${fmtN(st.annexIncome)}`, 'plus') : ''}
       ${st.repBonus ? row('　└ ⭐ 평판 보너스 (포함)', `+💰${fmtN(st.repBonus)}`, 'plus') : ''}
       ${st.trophBonus ? row('　└ 🏆 트로피 보너스 (포함)', `+💰${fmtN(st.trophBonus)}`, 'plus') : ''}
       ${bonus ? row('목표 보너스', `+💰${fmtN(bonus)}`, 'plus') : ''}

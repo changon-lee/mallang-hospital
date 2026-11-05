@@ -167,7 +167,7 @@ def test_volunteer_cooldown(page_at):
 
 def test_volunteer_day_zero_income_wages_paid(page_at):
     page = page_at(); boot(page, grade=2, day=10, money=5000)
-    prep(page); js(page, "act('vol'); act('start'); setSpeed(0); G.goals = []")
+    prep(page); js(page, "act('vol'); act('start'); setSpeed(0); G.goals = []; G.event = null")  # 위생 점검 벌금 같은 이벤트 제외
     m0 = js(page, "S.money")
     js(page, "G.combo = 4")
     pid = pay_ready(page, vip=True, karen=False, multi=False); do_pay(page, pid)
@@ -321,3 +321,132 @@ def test_annex_fits_screen(page_at):
         js(page, "S.annex.lv = 5; buildMap(); applyLayout()")
         assert js(page, CARDS_FIT), size
         assert js(page, PZ) >= base * .85, (size, js(page, PZ))
+
+
+# ---------- Task 6: 신관 칸 운영 ----------
+
+def annex_day(page, lv, **kw):
+    boot(page, grade=3, day=15, money=50000, **kw)
+    js(page, f"S.annex.lv = {lv}; prepDay(); act('start'); setSpeed(0); G.ambTimes = []; G.heliTimes = []; G.emergTimes = []; G.spawnT = 999")
+
+
+def P(pid):
+    return f"G.patients.find(x => x.id === {pid})"
+
+
+def test_child_flow(page_at):
+    page = page_at(); annex_day(page, 1)
+    pid = spawn_patient(page, child=True)
+    js(page, f"register({P(pid)})")
+    assert '🧸' in js(page, f"{P(pid)}.bubEl.textContent")
+    tick(page, 2.5)
+    assert js(page, f"{P(pid)}.stage") == 'annex' and js(page, f"{P(pid)}.ax") == 'peds'
+    tick(page, 6.5)
+    assert js(page, f"{P(pid)}.stage") == 'pay' and abs(js(page, f"{P(pid)}.fee") - 70) < 1e-9
+
+
+def test_child_to_dept_is_gentle(page_at):
+    page = page_at(); annex_day(page, 1)
+    pid = spawn_patient(page, child=True)
+    js(page, f"register({P(pid)}); G.combo = 3; sendTo({P(pid)}, 'int')")
+    assert js(page, f"{P(pid)}.stage") == 'reg' and js(page, "G.combo") == 3 and js(page, "G.stats.wrong") == 0
+    assert js(page, f"validRooms({P(pid)})").count('annex') == 1
+
+
+def test_ambulance_auto_to_er(page_at):
+    page = page_at(); boot(page, grade=3, day=15)
+    js(page, "S.annex.lv = 2; prepDay()")
+    assert js(page, "G.ambTimes.length") == 2
+    js(page, "act('start'); setSpeed(0); G.ambTimes = []; G.heliTimes = []; G.emergTimes = []; G.spawnT = 999")
+    pid = js(page, "spawnAmb().id")
+    tick(page, 1)
+    assert js(page, f"{P(pid)}.stage") == 'annex' and js(page, f"{P(pid)}.ax") == 'er' and js(page, f"{P(pid)}.saved") is True
+    tick(page, 8.5)
+    assert js(page, f"{P(pid)}.stage") == 'pay' and js(page, f"{P(pid)}.fee") >= 90
+
+
+def test_existing_emergency_to_er(page_at):
+    page = page_at(); annex_day(page, 2)
+    pid = js(page, "spawn(true, {emerg:true}).id")
+    js(page, f"sendTo({P(pid)}, 'annex')")
+    assert js(page, f"{P(pid)}.saved") is True and js(page, "G.stats.emergOk") == 1
+    assert js(page, f"{P(pid)}.ax") == 'er'
+
+
+def test_rehab_dest(page_at):
+    page = page_at(); annex_day(page, 3)
+    pid = spawn_patient(page, sym='🦴', urg=0, unknown=False, multi=False, karen=False, vip=False)
+    assert js(page, f"(() => {{ const r = Math.random; Math.random = () => .999; const d = rollDest('ort', {P(pid)}); Math.random = r; return d; }})()") == 'rehab'
+    js(page, f"register({P(pid)}); {P(pid)}.done = true; assignDest({P(pid)}, 'rehab')")
+    assert js(page, f"{P(pid)}.bubEl.textContent") == '🦿'
+    tick(page, 2.5)
+    assert js(page, f"{P(pid)}.stage") == 'annex' and js(page, f"{P(pid)}.ax") == 'rehab'
+
+
+def test_vip_suite_and_discharge(page_at):
+    page = page_at(); annex_day(page, 4)
+    pid = spawn_patient(page, sym='🤰', urg=0, unknown=False, multi=False, karen=False, vip=True)
+    assert js(page, f"(() => {{ const r = Math.random; Math.random = () => 0; const d = rollDest('obgy', {P(pid)}); Math.random = r; return d; }})()") == 'suite'
+    js(page, f"register({P(pid)}); {P(pid)}.done = true; assignDest({P(pid)}, 'suite')")
+    tick(page, 2.5)
+    assert js(page, f"{P(pid)}.stage") == 'ward' and js(page, f"{P(pid)}.ax") == 'suite'
+    exp = js(page, f"(() => {{ const p = {P(pid)}; return Math.round((p.fee + 120 + S.day*6 + extraPay(p)) * 2 * incomeMul()); }})()")
+    js(page, f"for (const p of G.patients.slice()) if (p.id !== {pid}) removeP(p, 'bye'); G.goals = []; G.t = 181; update(.1)")
+    assert js(page, "G.mode") == 'summary'
+    assert js(page, "G.stats.annexIncome") == exp
+    assert '신관 수입' in page.locator('.modal').inner_text()
+
+
+def test_suite_full_falls_back_to_ward(page_at):
+    page = page_at(); annex_day(page, 4)
+    ids = [spawn_patient(page, sym='🤰', urg=0, unknown=False, multi=False, karen=False, vip=True) for _ in range(3)]
+    for pid in ids:
+        js(page, f"register({P(pid)}); {P(pid)}.done = true; toAnnex({P(pid)}, 'suite')")
+    assert js(page, "G.ax.suite.slots.filter(Boolean).length") == 2
+    assert js(page, f"{P(ids[2])}.ax || null") is None
+
+
+def test_heli_auto_pay(page_at):
+    page = page_at(); boot(page, grade=3, day=15)
+    js(page, "S.annex.lv = 5; prepDay()")
+    assert js(page, "G.heliTimes.length") in (1, 2)
+    js(page, "act('start'); setSpeed(0); G.ambTimes = []; G.heliTimes = []; G.emergTimes = []; G.spawnT = 999")
+    exp = js(page, "Math.round((400 + S.day*10) * incomeMul())")
+    m0 = js(page, "S.money"); js(page, "spawnHeli()")
+    tick(page, 10.5)
+    assert js(page, "S.money") - m0 == exp and js(page, "S.life.heli") == 1
+
+
+def test_annex_backlog_badge(page_at):
+    page = page_at(); annex_day(page, 1)
+    for _ in range(4):
+        pid = spawn_patient(page, child=True)
+        js(page, f"register({P(pid)}); toAnnex({P(pid)}, 'peds')")
+    js(page, "renderAnnex()")
+    assert page.locator('.axs[data-ax=peds] .backlog').count() == 1
+
+
+def test_day_waits_for_annex_and_suite_discharges(page_at):
+    page = page_at(); annex_day(page, 4)
+    c = spawn_patient(page, child=True)
+    v = spawn_patient(page, sym='🤰', urg=0, unknown=False, multi=False, karen=False, vip=True)
+    js(page, f"register({P(c)}); toAnnex({P(c)}, 'peds'); register({P(v)}); {P(v)}.done = true; toAnnex({P(v)}, 'suite'); G.goals = []; G.t = 181; update(.1)")
+    assert js(page, "G.mode") == 'play'
+    tick(page, 7)
+    js(page, f"pay({P(c)}); update(.1)")
+    assert js(page, "G.mode") == 'summary'
+
+
+def test_auto_play_with_annex(page_at):
+    from test_e2e import AUTO
+    page = page_at((390, 744))
+    boot(page, grade=3, day=15, money=50000, rep=90, depts=ALLD, rooms=ALLR,
+         staff_js="S.staff.push(mkStaff('nurse')); S.staff.push(mkStaff('cashier')); S.staff.push(mkStaff('pharm'))")
+    js(page, "S.annex.lv = 5; prepDay(); act('start'); setSpeed(0)")
+    inc = 0
+    for _ in range(3):
+        js(page, AUTO)
+        assert js(page, "G.mode") == 'summary'
+        inc += js(page, "G.stats.annexIncome")
+        js(page, "act('sumOk'); act('start'); setSpeed(0)")
+    assert page.js_errors == [] and inc > 0
