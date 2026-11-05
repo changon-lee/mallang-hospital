@@ -129,6 +129,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 .pt-bub.mad{background:#ffe1e6;border-color:#ff9fb0}
 .pt-body{font-size:var(--pz);line-height:1;position:relative}
 .ani{display:inline-block}
+.pt.standing::after{content:'🪑';position:absolute;left:-3px;bottom:calc(var(--pz)*.5);font-size:calc(var(--pz)*.55);z-index:7;pointer-events:none;filter:drop-shadow(0 1px 1px #0004)}
 .crown{position:absolute;top:-.45em;left:50%;transform:translateX(-50%) rotate(-8deg);font-size:.5em}
 .pt-urg{position:absolute;left:-.12em;top:-.04em;width:.36em;height:.36em;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 2px #0003}
 .pt-urg.u0{background:var(--grn)}.pt-urg.u1{background:var(--yel)}.pt-urg.u2{background:var(--red);animation:blink .8s infinite}
@@ -1443,6 +1444,7 @@ function place(p, container) {
 }
 const freeSeat = () => G.seats.indexOf(null);
 function leave(p) {
+  if (p.el) p.el.classList.remove('standing');
   if (p.loc === 'annex') { axLeave(p); p.ax = null; p.axIn = false; }
   if (p.loc === 'seat') { if (G.seats[p.slot] === p) G.seats[p.slot] = null; }
   else if (G.slots[p.loc] && G.slots[p.loc][p.slot] === p) G.slots[p.loc][p.slot] = null;
@@ -1451,7 +1453,8 @@ function leave(p) {
 function toSeat(p) {
   leave(p);
   const i = freeSeat();
-  if (i < 0) { p.loc = 'ent'; place(p, G.entQ); return; }
+  // 의자가 없으면 입구에서 기다림: 이미 줄에 있으면 자리(온 순서)를 지키고, 접수 끝난 표시(🪑)만 붙임
+  if (i < 0) { p.loc = 'ent'; if (p.el.parentNode !== G.entQ) place(p, G.entQ); p.el.classList.toggle('standing', p.stage !== 'new'); return; }
   G.seats[i] = p; p.loc = 'seat'; p.slot = i; place(p, G.seatEls[i]);
 }
 function toCash(p) { leave(p); p.loc = 'cash'; p.cashT = G.t; place(p, G.cashQ); }

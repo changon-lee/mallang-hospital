@@ -288,3 +288,22 @@ def test_tap_then_drag_another_patient(page_at):
     drag_to(page, b, 'int'); page.wait_for_timeout(100)
     assert js(page, f"G.patients.find(p=>p.id==={a}).stage") == 'reg'
     assert js(page, f"(G.patients.find(p=>p.id==={b})||{{}}).target") == 'int' or js(page, f"G.slots.int[0] && G.slots.int[0].id") == b
+
+
+def test_reception_line_keeps_arrival_order_when_seats_full(page_at):
+    # 의자가 꽉 차서 접수 끝난 환자가 입구에 서 있어도 줄 순서는 온 순서 그대로, 접수 끝난 사람은 🪑 대기 표시
+    page = page_at(); boot(page, grade=1, staff_js="S.staff.push(mkStaff('nurse',{spd:1}))")
+    js(page, "G.spawnT = 999; G.emergTimes = []; G.event = null")
+    js(page, "for (let i = 0; i < G.seats.length; i++) { const p = spawn(true, {sym:'🤒', urg:0}); register(p); }")
+    ids = []
+    for _ in range(5):
+        ids.append(js(page, "spawn(true, {sym:'🤒', urg:0}).id")); tick(page, 4)
+    line = js(page, "[...G.entQ.children].map(e => +e.dataset.id)")
+    assert line == sorted(line) == ids
+    standing = js(page, "[...G.entQ.children].filter(e => e.classList.contains('standing')).map(e => +e.dataset.id)")
+    reg = js(page, "G.patients.filter(p => p.loc === 'ent' && p.stage !== 'new').map(p => p.id)")
+    assert standing == reg and len(reg) >= 2
+    # 자리가 나면 먼저 온 사람부터 대기실로, 표시도 사라짐
+    js(page, "const s = G.seats.find(Boolean); leave(s); removeP(s, 'bye'); update(.05)")
+    assert js(page, f"G.patients.find(p => p.id === {ids[0]}).loc") == 'seat'
+    assert js(page, f"G.patients.find(p => p.id === {ids[0]}).el.classList.contains('standing')") is False
