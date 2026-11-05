@@ -211,7 +211,7 @@ def test_research_gating(page_at):
 
 def test_research_completes_after_days(page_at):
     page = page_at(); boot(page, grade=2, day=10, money=50000)
-    js(page, "prepDay(); act('res:diag'); act('start'); setSpeed(0); G.goals = []; G.t = 181; update(.1)")
+    js(page, "prepDay(); act('res:diag'); act('start'); setSpeed(0); G.goals = []; G.event = null; G.t = 181; update(.1)")
     assert js(page, "G.mode") == 'summary' and js(page, "hasRes('diag')") is True
     assert '연구비' in page.locator('.modal').inner_text()
     js(page, SPY); js(page, "act('sumOk')")
@@ -262,7 +262,7 @@ PZ = "parseFloat(getComputedStyle(mapEl).getPropertyValue('--pz'))"
 
 
 def end_day(page):
-    js(page, "act('start'); setSpeed(0); G.goals = []; G.t = 181; update(.1)")
+    js(page, "act('start'); setSpeed(0); G.goals = []; G.event = null; G.t = 181; update(.1)")
     assert js(page, "G.mode") == 'summary'
 
 
@@ -327,7 +327,7 @@ def test_annex_fits_screen(page_at):
 
 def annex_day(page, lv, **kw):
     boot(page, grade=3, day=15, money=50000, **kw)
-    js(page, f"S.annex.lv = {lv}; prepDay(); act('start'); setSpeed(0); G.ambTimes = []; G.heliTimes = []; G.emergTimes = []; G.spawnT = 999")
+    js(page, f"S.annex.lv = {lv}; prepDay(); act('start'); setSpeed(0); G.ambTimes = []; G.heliTimes = []; G.emergTimes = []; G.spawnT = 999; G.event = null")
 
 
 def P(pid):
