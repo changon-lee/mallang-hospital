@@ -124,3 +124,69 @@ def test_eq_tab_shows_now_next(page_at):
     js(page, "G.mode='prep'; showShop('eq')")
     txt = page.locator('.modal').inner_text()
     assert '→' in txt and 'X-ray' in txt and '내과' in txt
+
+
+# ---------- Task 3: 기부 · 봉사 진료 ----------
+
+def prep(page):
+    js(page, "prepDay()")
+
+
+def test_donate_once_per_day(page_at):
+    page = page_at(); boot(page, grade=2, day=10, money=10000, rep=50)
+    prep(page)
+    js(page, "act('give:big')")
+    assert js(page, "S.money") == 10000 - 2000 and js(page, "S.donated") == 2000
+    assert js(page, "S.rep") > 50
+    js(page, "act('give:small')")
+    assert js(page, "S.money") == 8000
+    page2 = page_at(); boot(page2, grade=1, day=10, money=10000)
+    prep(page2); js(page2, "act('give:small')")
+    assert js(page2, "S.money") == 10000 and js(page2, "S.donated") == 0
+
+
+def test_give_box_in_prep(page_at):
+    page = page_at(); boot(page, grade=2, day=10)
+    js(page, "prepDay()")
+    txt = page.locator('.modal').inner_text()
+    assert '기부' in txt and '봉사 진료' in txt
+    page2 = page_at(); boot(page2, grade=1, day=10)
+    js(page2, "prepDay()")
+    assert '봉사 진료' not in page2.locator('.modal').inner_text()
+
+
+def test_volunteer_cooldown(page_at):
+    page = page_at(); boot(page, grade=2, day=10)
+    prep(page); js(page, "act('vol')")
+    assert js(page, "G.vol") is True and js(page, "S.volLast") == 10
+    js(page, "S.day = 12")
+    assert js(page, "volReady()") is False
+    js(page, "S.day = 13")
+    assert js(page, "volReady()") is True
+
+
+def test_volunteer_day_zero_income_wages_paid(page_at):
+    page = page_at(); boot(page, grade=2, day=10, money=5000)
+    prep(page); js(page, "act('vol'); act('start'); setSpeed(0); G.goals = []")
+    m0 = js(page, "S.money")
+    js(page, "G.combo = 4")
+    pid = pay_ready(page, vip=True, karen=False, multi=False); do_pay(page, pid)
+    assert js(page, "S.money") == m0 and js(page, "G.stats.income") == 0
+    wages = js(page, "S.staff.reduce((a, s) => a + s.wage, 0)")
+    js(page, "G.t = 181; update(.1)")
+    assert js(page, "G.mode") == 'summary'
+    assert js(page, "S.money") == m0 - wages
+    assert '봉사 진료' in page.locator('.modal').inner_text()
+    assert js(page, "S.life.volDays") == 1
+
+
+def test_volunteer_rep_and_combo(page_at):
+    page = page_at(); boot(page, grade=2, day=10, rep=50)
+    prep(page); js(page, "act('vol'); act('start'); setSpeed(0); S.rep = 50")
+    pid = pay_ready(page, vip=False, karen=False, multi=False); do_pay(page, pid)
+    assert abs(js(page, "S.rep") - (50 + 1.0 * (1 - .55 * .25))) < 1e-9
+    r0 = js(page, "S.rep"); js(page, "G.combo = 5; breakCombo()")
+    assert abs(js(page, "S.rep") - (r0 - 0.75)) < 1e-9
+    js(page, "Math.random = () => 0.5")
+    base = js(page, "G.vol = false, spawnInterval()")
+    assert abs(js(page, "G.vol = true, spawnInterval()") - base / 1.3) < 1e-9
