@@ -343,7 +343,7 @@ button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 /* 가구 */
 .furn{position:absolute;pointer-events:none;z-index:0;line-height:1.3;font-size:calc(var(--pz)*.7)}
 .f-tl{top:3px;left:4px}.f-tr{top:3px;right:4px}.f-bl{bottom:3px;left:4px}.f-br{bottom:3px;right:4px}
-.f-t{top:2px;left:50%;transform:translateX(-50%)}.f-b{bottom:2px;left:50%;transform:translateX(-50%)}.f-r{right:3px;top:50%;transform:translateY(-50%)}
+.f-t{top:2px;left:50%;transform:translateX(-50%)}.f-l{left:3px;top:50%;transform:translateY(-50%)}.f-t2{top:2px;left:24%}.f-b{bottom:2px;left:50%;transform:translateX(-50%)}.f-r{right:3px;top:50%;transform:translateY(-50%)}
 .desk{padding:4px 6px;background:linear-gradient(#ddb990,#c99f74);border-radius:5px;box-shadow:0 3px 0 #a9835c;font-size:calc(var(--pz)*.5);letter-spacing:2px}
 .sink{background:#fff;border-radius:6px;padding:2px;box-shadow:0 0 0 2px #d3e6e1}
 .counter{left:5%;right:5%;top:2px;height:22px;display:flex;align-items:center;justify-content:space-around;font-size:13px;
@@ -657,7 +657,14 @@ const UPS = {
   clinic:{ name:'진료실 기본 장비', icon:'⚙️', prices:[400,900,1800], desc:l=>`진료 속도 ×${CLINIC_MUL[l]}` },
   wait:  { name:'대기실 의자', icon:'🪑', prices:[250,600,1200], desc:l=>`의자 ${CHAIRS[l]}개` },
   ward:  { name:'입원실 침대', icon:'🛏️', prices:[600,1300,2400], desc:l=>`침대 ${2*(l+1)}개` },
+  // 좋은 효과일수록 비쌈 (후반 하루 1.5만 기준)
+  inj:   { name:'주사실 침대', icon:'💉', prices:[2500,6000], need:'inj', desc:l=>`주사 자리 ${l+1}개` },
+  surg:  { name:'수술대', icon:'⚕️', prices:[5000,12000], need:'surg', desc:l=>`수술 자리 ${l+1}개` },
+  rest:  { name:'휴게실 확장', icon:'☕', prices:[1500,3500,7000], need:'rest', desc:l=>`동시 휴식 ${2+l}명 · 회복 ${(9/(1+.15*l)).toFixed(1)}초` },
 };
+const upMax = id => UPS[id].prices.length;
+const restCap = () => 2 + (S.up.rest || 0);
+const restDur = () => 9 / (1 + .15*(S.up.rest || 0));
 const bedCount = () => 2 * (1 + S.up.ward); // 기본 2개, 단계마다 2개씩
 const DECOS = {
   plant:{ name:'화분',   icon:'🪴', price:120,  grade:0, eff:.07 },
@@ -665,7 +672,12 @@ const DECOS = {
   tv:   { name:'TV',     icon:'📺', price:450,  grade:1, eff:.08 },
   fish: { name:'어항',   icon:'🐠', price:700,  grade:1, eff:.08 },
   kids: { name:'키즈존', icon:'🧸', price:1000, grade:2, eff:.10 },
+  purifier:{ name:'공기청정기', icon:'🌬️', price:1800, grade:1, eff:0, fx:'쓰레기가 덜 생겨요', tag:'쓰레기 -33%' },
+  speaker: { name:'스피커',     icon:'🎵', price:2500, grade:1, eff:0, fx:'잔잔한 음악에 진상 환자가 소란을 덜 피워요', tag:'소란 -33%' },
+  painting:{ name:'명화 액자',  icon:'🖼️', price:6000, grade:2, eff:0, fx:'병원 품격이 올라 평판이 더 잘 올라요', tag:'평판 +5%' },
+  photo:   { name:'포토존',     icon:'📸', price:9000, grade:2, eff:0, fx:'인증샷 명소! VIP가 더 자주 와요', tag:'VIP +25%' },
 };
+const calmMul = () => S.deco.speaker ? 1.5 : 1;
 const GRADES = ['동네의원','병원','종합병원','대학병원'];
 const MAX_GRADE = GRADES.length - 1;
 const GRADE_TH = [{rep:55,total:50},{rep:75,total:200},{rep:88,total:450}];
@@ -764,7 +776,7 @@ let G = null; // 하루 동안의 실행 상태
 const newLife = () => ({ maxCombo:0, emergOk:0, karenCalm:0, vip:0, heli:0, bestDay:0, perfectDays:0, volDays:0 });
 function newState() {
   const s = { v:2, day:1, money:300, rep:30, stars:0, grade:0, total:0,
-    depts:{int:true}, rooms:{exam:false,inj:false,rest:false,surg:false}, up:{clinic:0,wait:0,ward:0}, deco:{},
+    depts:{int:true}, rooms:{exam:false,inj:false,rest:false,surg:false}, up:{clinic:0,wait:0,ward:0,inj:0,surg:0,rest:0}, deco:{},
     staff:[], cands:[], candDay:0, tut:false, nextId:1, lay:{},
     eq:{}, res:{done:{},cur:null}, annex:{lv:0,build:null}, donated:0, volLast:-99, life:newLife(), troph:{}, seen:{} };
   S = s;
@@ -974,7 +986,7 @@ function hospitalMul() {
 }
 function addMoney(n) { S.money += n; const c = $('#hMoneyC'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
 // 평판은 높을수록 오르기 어려움 (⭐5 근처에선 얻는 양이 절반 이하)
-function addRep(n) { if (n > 0) n *= 1 - .55 * (S.rep/100)**2; S.rep = clamp(S.rep + n, 0, 100); }
+function addRep(n) { if (n > 0) n *= (1 - .55 * (S.rep/100)**2) * (S.deco.painting ? 1.05 : 1); S.rep = clamp(S.rep + n, 0, 100); }
 const repTier = () => { let t = null; for (const x of REP_TIERS) if (S.rep >= x.rep) t = x; return t; };
 const repMul = () => (repTier() || { mul:1 }).mul;
 const repPct = t => Math.round((t.mul - 1)*100);
@@ -1337,14 +1349,14 @@ function cardHTML(id) {
   switch (id) {
     case 'ent': return hdr('🚪','입구·접수') + `<div class="edoor"></div><div class="cb has-counter">${F('counter','🛎️ 💻 📋')}${F('mat')}<div class="queue" id="entQ"></div><span class="welcome">어서 오세요 💕</span><span class="staffs" data-staff="ent"></span></div>`;
     case 'wait': {
-      const pos = { plant:'f-tl', water:'f-tr', tv:'f-t tv', fish:'f-r', kids:'f-bl' };
+      const pos = { plant:'f-tl', water:'f-tr', tv:'f-t tv', fish:'f-r', kids:'f-bl', purifier:'f-br', speaker:'f-l', painting:'f-t2', photo:'f-b' };
       const deco = Object.keys(DECOS).filter(k => S.deco[k]).map(k => F(pos[k], DECOS[k].icon)).join('');
       return hdr('🪑','대기실') + `<div class="cb">${F('rug')}${deco}<div class="seats">${'<div class="seat"></div>'.repeat(CHAIRS[S.up.wait])}</div><div class="dirtL"></div><span class="staffs" data-staff="wait"></span></div>`;
     }
     case 'exam':  return hdr('🩻','검사실','<span class="syms">❓→🔍</span>') + `<div class="cb room1">${F('f-tl lightbox','🩻')}${F('f-tr','🧪')}${slotHTML('🩻 X-ray')}${slotHTML('💉 피검사')}</div>`;
     case 'pharm': return hdr('💊','약국','<span class="syms small">창구 3개</span>') + `<div class="cb has-shelf pharm-cb">${F('shelf','💊🧴💊🧴💊🧴')}<span class="staffs" data-staff="pharm"></span><div class="pslots">${slotHTML('창구1')}${slotHTML('창구2')}${slotHTML('창구3')}</div><div class="queue pq" id="pharmQ"></div></div>`;
-    case 'surg':  return hdr('⚕️','수술실') + `<div class="cb room1">${F('f-tl lightbox','💡')}${F('cart f-br','🩺🧤')}${slotHTML()}</div>`;
-    case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML()}<span class="staffs" data-staff="inj"></span></div>`;
+    case 'surg':  return hdr('⚕️','수술실') + `<div class="cb room1">${F('f-tl lightbox','💡')}${F('cart f-br','🩺🧤')}${slotHTML().repeat(1 + (S.up.surg || 0))}</div>`;
+    case 'inj':   return hdr('💉','주사실') + `<div class="cb room1">${F('cart f-br','💉🩹')}${F('f-tl','🧴')}${slotHTML().repeat(1 + (S.up.inj || 0))}<span class="staffs" data-staff="inj"></span></div>`;
     case 'ward':  return hdr('🛏️','입원실') + `<div class="cb">${F('win f-t')}${F('f-tr','🌷')}${F('f-bl','📺')}<div class="beds">${'<div class="bed"></div>'.repeat(bedCount())}</div></div>`;
     case 'cash':  return hdr('💰','수납') + `<div class="cb has-counter">${F('counter','💳 🧾 🖨️')}<div class="queue" id="cashQ"></div><span class="staffs" data-staff="cash"></span></div>`;
     case 'annex': return hdr('🏥','신관', `<span class="syms small">${S.annex.lv}/5</span>`) + `<div class="cb axcb"><div class="axslots">${ANNEX.map(axSlotHTML).join('')}</div></div>`;
@@ -1492,10 +1504,10 @@ function spawn(force=false, o={}) {
   if (o.vip != null) vip = o.vip;
   else if (emerg || karen || walkin) vip = false;
   else if (G.vipTimes.length && G.t >= G.vipTimes[0]) { vip = true; G.vipTimes.shift(); }
-  else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1) * ((repTier() || {}).vip || 1)) vip = true;
+  else if (S.day >= 3 && Math.random() < (.03 + .06*ramp(3, 10)) * (G.ad && ADS[G.ad].vip || 1) * ((repTier() || {}).vip || 1) * (S.deco.photo ? 1.25 : 1)) vip = true;
   const p = { id:++G.pid, animal:o.animal || pick(ANIMALS), sym, dept:walkin ? null : symDept(sym), child, walkin, amb:!!o.amb, heli:!!o.heli, ax:null, axWant:null, axT:0, unknown, revealed:false, shown:unknown?'❓':sym,
     urg:emerg ? 2 : urg, vip, pat:100, stage:emerg ? 'reg' : 'new', loc:'ent', slot:-1, fee:0, done:false, dest:null, target:null, svc:0, dur:1, phase:null, assignT:0, cashT:0,
-    extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12), calm:0, calmed:0 };
+    extra, multi, karen, emerg, tantrum:false, tantrumT:rnd(7,12) * calmMul(), calm:0, calmed:0 };
   const el = document.createElement('div');
   el.className = 'pt arrive' + (emerg ? ' emerg' : '') + (karen ? ' karen' : '') + (child ? ' child' : '') + (p.heli ? ' heli' : ''); el.dataset.id = p.id;
   el.innerHTML = `<div class="pt-in"><div class="pt-bw"><div class="pt-say"></div><div class="pt-bub"></div></div><div class="pt-body"><span class="ani">${p.animal}</span><span class="pt-urg u${p.urg}"></span>${vip?'<span class="crown">👑</span>':child?'<span class="crown">🎀</span>':''}</div><div class="pt-hp"><b>♥</b><span><i></i></span></div></div>`;
@@ -1520,7 +1532,7 @@ function updKaren(dt) {
   for (const p of G.patients) {
     if (!p.karen || p.calmed >= 2) continue;
     // 진료·입원 중에는 얌전해짐 (소란이 계속 주변 하트를 깎지 않도록)
-    if (p.stage === 'svc' || p.stage === 'ward') { if (p.tantrum) { p.tantrum = false; p.el.classList.remove('tantrum'); p.tantrumT = rnd(12,18); } continue; }
+    if (p.stage === 'svc' || p.stage === 'ward') { if (p.tantrum) { p.tantrum = false; p.el.classList.remove('tantrum'); p.tantrumT = rnd(12,18) * calmMul(); } continue; }
     if (!p.tantrum) {
       p.tantrumT -= dt;
       if (p.tantrumT <= 0) { p.tantrum = true; p.calm = 0; p.sayT = 0; p.el.classList.add('tantrum'); SFX.angry(); }
@@ -1534,7 +1546,7 @@ function calmKaren(p) {
   p.calm++; SFX.calm(); floatAt(p.el, pick(['💬','🙏','😊']), 's');
   if (p.calm < 4) return;
   p.tantrum = false; p.calmed++; p.el.classList.remove('tantrum'); G.stats.karenCalm++; S.life.karenCalm++;
-  p.tantrumT = rnd(12,18); addRep(.5); SFX.reg();
+  p.tantrumT = rnd(12,18) * calmMul(); addRep(.5); SFX.reg();
   say(p, p.calmed >= 2 ? '…원장님 덕분에 기분 풀렸어요 😌' : '흠… 알겠어요.', 2000);
 }
 function register(p) {
@@ -1901,7 +1913,7 @@ function updStaff(dt) {
   let resting = S.staff.filter(s => s.rest > 0).length;
   for (const s of S.staff) {
     if (s.rest > 0) { s.rest -= dt; s.fat = Math.max(0, s.fat - dt*12); if (s.rest <= 0) { s.rest = 0; s.fat = 0; } continue; }
-    if (S.rooms.rest && s.fat >= 80 && resting < 2 && isIdle(s)) { s.rest = 9; resting++; continue; }
+    if (S.rooms.rest && s.fat >= 80 && resting < restCap() && isIdle(s)) { s.rest = restDur(); resting++; continue; }
     const tm = s.fat >= 100 ? .6 : 1;
     if (NAV[s.role]) {
       s.t -= dt*tm;
@@ -1929,7 +1941,7 @@ function cleanDirt(d, auto) {
 function updDirt(dt) {
   if (!G.dirtL) return;
   G.dirtT -= dt;
-  if (G.dirtT <= 0) { G.dirtT = Math.max(7, rnd(15,24) - G.patients.length*.5); if (G.dirt.length < 6) addDirt(); }
+  if (G.dirtT <= 0) { G.dirtT = Math.max(7, rnd(15,24) - G.patients.length*.5) * (S.deco.purifier ? 1.5 : 1); if (G.dirt.length < 6) addDirt(); }
 }
 function updPatience(dt) {
   const hm = hospitalMul();
@@ -2359,11 +2371,11 @@ function showShop(tab) {
     body = '<div class="ssec">🚪 새 방 짓기</div><div class="sgrid">' + Object.keys(BUY_ROOMS).map(id => {
       const r = BUY_ROOMS[id], ps = priceState(S.rooms[id], '완성!', r.grade, r.price);
       return itemHTML({ icon:ROOMS[id].icon, name:ROOMS[id].name, tone:tones[id], desc:r.desc, key:`room:${id}`, own:S.rooms[id], ...ps });
-    }).join('') + '</div><div class="ssec">🔧 업그레이드 <small>각 3단계</small></div><div class="sgrid">' + Object.keys(UPS).map(id => {
-      const u = UPS[id], lv = S.up[id], max = lv >= 3;
-      return itemHTML({ icon:u.icon, name:u.name, tone:'mint', tag:`${'★'.repeat(lv)}${'☆'.repeat(3-lv)}`, key:`up:${id}`, own:max,
+    }).join('') + '</div><div class="ssec">🔧 업그레이드</div><div class="sgrid">' + Object.keys(UPS).map(id => {
+      const u = UPS[id], lv = S.up[id] || 0, n = upMax(id), max = lv >= n, need = u.need && !S.rooms[u.need];
+      return itemHTML({ icon:u.icon, name:u.name, tone:'mint', tag:`${'★'.repeat(lv)}${'☆'.repeat(n-lv)}`, key:`up:${id}`, own:max,
         desc: max ? `${u.desc(lv)}<br>최고 단계예요! ✨` : `지금: ${u.desc(lv)}<br>다음: <b>${u.desc(lv+1)}</b>`,
-        lab: max ? 'MAX ✨' : `⬆️ ${coin(u.prices[lv])}`, dis: max || S.money < u.prices[lv] });
+        lab: max ? 'MAX ✨' : need ? `🔒 ${ROOMS[u.need].name} 먼저` : `⬆️ ${coin(u.prices[lv])}`, dis: max || need || S.money < u.prices[lv] });
     }).join('') + '</div>';
   } else if (tab === 'eq') {
     const mx = eqMax();
@@ -2385,8 +2397,8 @@ function showShop(tab) {
   } else if (tab === 'deco') {
     body = '<div class="sgrid">' + Object.keys(DECOS).map(id => {
       const d = DECOS[id], ps = priceState(S.deco[id], '설치 완료', d.grade, d.price);
-      return itemHTML({ icon:d.icon, name:d.name, tone:'peach', tag:`하트 -${Math.round(d.eff*100)}%`, key:`deco:${id}`, own:S.deco[id], ...ps,
-        desc:'대기실이 아늑해져서<br>환자들이 덜 지쳐요 💗' });
+      return itemHTML({ icon:d.icon, name:d.name, tone:'peach', tag:d.tag || `하트 -${Math.round(d.eff*100)}%`, key:`deco:${id}`, own:S.deco[id], ...ps,
+        desc: d.fx || '대기실이 아늑해져서<br>환자들이 덜 지쳐요 💗' });
     }).join('') + '</div>';
   } else {
     body = `<div class="ssec">🏥 우리 병원 식구들 <small>일급은 매일 결산 때 나가요</small></div>
@@ -2418,9 +2430,9 @@ function buy(key) {
     if (S.rooms[id] || S.grade < r.grade || S.money < r.price) return;
     S.money -= r.price; S.rooms[id] = true; msg = `${ROOMS[id].icon} ${ROOMS[id].name} 완성!`;
   } else if (kind === 'up') {
-    const u = UPS[id], lv = S.up[id];
-    if (lv >= 3 || S.money < u.prices[lv]) return;
-    S.money -= u.prices[lv]; S.up[id]++; msg = `${u.icon} ${u.name} 업그레이드! ${'★'.repeat(S.up[id])}`;
+    const u = UPS[id], lv = S.up[id] || 0;
+    if (!u || lv >= upMax(id) || (u.need && !S.rooms[u.need]) || S.money < u.prices[lv]) return;
+    S.money -= u.prices[lv]; S.up[id] = lv + 1; msg = `${u.icon} ${u.name} 업그레이드! ${'★'.repeat(S.up[id])}`;
   } else if (kind === 'eq') {
     const lv = eqLv(id), c = eqPrice(id, lv);
     if (!EQ_TARGETS().includes(id) || lv >= eqMax() || S.money < c) return;
@@ -2528,6 +2540,7 @@ function startGame(s) {
   S = s; $('#title').classList.add('hidden');
   [...S.staff, ...S.cands].forEach(x => x.wage = wageOf(x)); // 일급 공식이 바뀌어도 이어하기 저장과 맞춤
   // 예전 저장에 없던 후반 콘텐츠 필드 보정 + 누적 기록으로 받을 수 있는 트로피는 조용히 지급
+  S.up = Object.assign({ clinic:0, wait:0, ward:0, inj:0, surg:0, rest:0 }, S.up);
   S.eq = S.eq || {}; S.res = Object.assign({ done:{}, cur:null }, S.res); S.res.done = S.res.done || {};
   S.annex = Object.assign({ lv:0, build:null }, S.annex); S.life = Object.assign(newLife(), S.life); S.troph = S.troph || {}; S.seen = S.seen || {};
   checkTrophies(true);
